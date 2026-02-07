@@ -27,3 +27,26 @@ CPSC 455 - GROUP 3 - SPRING 2026
 ## Planned
 - Develope the sending message to be able to sending more message
 - Set the date to write readme.md
+
+# 6 FEB 2026
+## Added
+- Using set to identified connected and disconnected user
+- Trying to handling discruption
+- Write basic get message and send message fuctions
+- Trying to make system_announcement work
+
+## Planned
+- Handling message in realtime
+- Handling the discruption
+- Label the name of the clients sending message
+- Make the system announcement work
+- Testing using split terminal
+
+# 7 FEB 2026
+## Added
+- Successfully create real-time chat by test using split terminal
+- Label basically the username of the users
+- System annoucements now work when user left or join
+
+## Planned
+- Have to create authenication and password + username for each users.
