@@ -4,3 +4,4 @@ venv/
 *.key
 __pycache__/
 *.crt
+users.json

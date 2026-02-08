@@ -7,6 +7,21 @@ import ssl #Update (Feb4 to use TLS)
         CtSmessage = input("Your message: ")
         await Client_Server_connection.send(CtSmessage) #await = wait until send mess
 """
+async def auth_period(connection):
+
+    loop = asyncio.get_running_loop()
+
+    while True:
+        server_mess = await connection.recv()
+        print(server_mess)
+
+        if server_mess == "LOGIN SUCCESS":
+            print("You can chat now!")
+            break
+
+        user_input = await loop.run_in_executor(None, input, "> ")
+        await connection.send(user_input)
+
 
 async def send_mess(Client_Server_connection):
     loop = asyncio.get_running_loop()
@@ -38,7 +53,11 @@ async def client():
 
          #print(response)
             print("Connected to server")
-            await asyncio.gather(send_mess(connection),get_mess(connection) ) #ok, send OR get mess at the mean time, only 1 fnct
+            #await asyncio.gather(send_mess(connection),get_mess(connection) ) #ok, send OR get mess at the mean time, only 1 fnct
+
+            await auth_period(connection)
+
+            await asyncio.gather(send_mess(connection), get_mess(connection))
 
     except Exception as Unexpected_Close:
         print("connection is closed !",  Unexpected_Close)
