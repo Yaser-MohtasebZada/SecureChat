@@ -50,3 +50,10 @@ CPSC 455 - GROUP 3 - SPRING 2026
 
 ## Planned
 - Have to create authenication and password + username for each users.
+
+# 8 FEB 2026
+## Added
+- Basic check and validate username and password
+
+## Planned
+- Have to create rate limiting.
