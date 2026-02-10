@@ -57,3 +57,22 @@ CPSC 455 - GROUP 3 - SPRING 2026
 
 ## Planned
 - Have to create rate limiting.
+
+# 8 FEB 2026 [b - night]
+## Added
+- Create basic rate limting
+- Fix bugs and terminal presentation.
+
+## Planned
+- Have to creat heartbeat function.
+- Lookup to look the file transfer fuctions.
+- Fix bugs loops when users chat
+
+
+# 9 FEB 2026
+## Added
+- Basic heartbeat and file transfer.
+
+## Planned
+- Documentations, fix bugs and may be develop some easy-to-do functions.
+- Plan for recording.
