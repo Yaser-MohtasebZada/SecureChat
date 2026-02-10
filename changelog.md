@@ -76,3 +76,12 @@ CPSC 455 - GROUP 3 - SPRING 2026
 ## Planned
 - Documentations, fix bugs and may be develop some easy-to-do functions.
 - Plan for recording.
+
+# 10 FEB 2026//morning
+## Added
+- File transfer from client to server now became client to client
+- Fix some bugs related to the text message
+- Update the system receive message announcement
+
+## Planned
+- Documentations, especially focus on readme.md
