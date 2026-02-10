@@ -1,6 +1,7 @@
 import websockets
 import asyncio
 import ssl #Update (Feb4 to use TLS)
+import os #for basic file transfer attempts
 
 """async def send_mess(Client_Server_connection):
     while True: #asking for mess as always
@@ -30,14 +31,65 @@ async def send_mess(Client_Server_connection):
         CtSmessage = await loop.run_in_executor(None, input, "Your message: ") #ensure that input() not crash the "while loop"
         await Client_Server_connection.send(CtSmessage)
 
+        if CtSmessage.startswith("/file "):
+                path_components = CtSmessage.split(" ", 1)
+                if len(path_components) < 2:
+                    print("Missing filename, do it again in next chat!!")
+                    continue
+                #command = path_components[0] not need, not work
+                file_name = path_components[1]
+                await file_transfer(Client_Server_connection, file_name)
+                continue
+            
 """async def get_mess(Server_Client_connection):
     async for StCmessage in Server_Client_connection:
         print("\n", StCmessage)"""
 
 async def get_mess(Server_Client_connection):
-    async for StCmessage in Server_Client_connection:
-        print(f"\n{StCmessage}")
-        print("Your message: ", end="", flush=True)
+    async for comming_message_StC in Server_Client_connection:
+       
+        if comming_message_StC.startswith("file_metadata|"):#check the comming mess begin with file_metadata
+            _, file_name, file_size = comming_message_StC.split("|") 
+            #take the content between the |, ignore the "file_metadata" by a underscore _
+            file_bytes = await Server_Client_connection.recv()
+
+            with open(f"received_{file_name}", "wb") as file_handler: #write-binary
+                file_handler.write(file_bytes)
+
+            print(f"Received {file_name}, {file_size}")
+            continue
+
+        if comming_message_StC == "PING":
+            #await Server_Client_connection.send("Still there!!")
+            await Server_Client_connection.send("PONG")
+            continue
+
+        print(f"\n{comming_message_StC}")
+
+async def file_transfer(CtSconnection, file_name):
+
+    if os.path.exists(file_name) == False: #check if there is a file with that name and in that category
+        print("File does not exist!") 
+        return #if not, STOP!
+
+    
+    file_name = os.path.basename(file_name)  # keep file name, get rid of path lead to it
+    file_size = os.path.getsize(file_name) #check the size of file in terms of bytes, to limit byte size to small
+    file_size_limit = 3 * 1024   # 3 KB is max. Safely not crashed, testing easier
+    if file_size > file_size_limit:
+        print("System cannot help you to sent the file that larger than 3 MB!")
+        return
+    
+    
+    # Send metadata
+    await CtSconnection.send(f"file_metadata|{file_name}|{file_size}")
+
+    # Send file bytes
+    with open(file_name, "rb") as file_handler: #'rb' read + binary mode
+        file_binary_style = file_handler.read() #read the content in binary mode, store in file_binary
+        await CtSconnection.send(file_binary_style) #sending stream of bytes to represent the file
+
+    print("File is sent!")
 
 async def client():
     #1. Creat TLS Context

@@ -3,6 +3,7 @@ import websockets       # websocket library //help make server communicate in re
 import ssl #to have implement TLS
 import bcrypt  #not using hashlib because it use SHA256, too fast and being victimed to brute-force
 import json #to save users to permanent after being hashed, because hash change every single time server reload.
+import time
 
 def hash_pass(plain_pass):
     return bcrypt.hashpw(plain_pass.encode(), bcrypt.gensalt())
@@ -89,6 +90,39 @@ async def system_announcement(system_Message):
         clients_connected_set.discard(each_client)
   """
 
+
+
+user_timestamp_dict = {}   # KEY: username -> PAIR VALUE: timestamps
+
+#valid_timestamps = []
+
+def allowed_to_send(username):
+    now = time.time()
+    if username not in user_timestamp_dict:
+        user_timestamp_dict[username] = []
+
+    # Get the list of timestamps for this user
+    user_timestamps = user_timestamp_dict[username]
+
+    # Create a list to hold the valid timestamps within the time window
+    valid_timestamps = []
+
+    # Loop through each timestamp, check NOW - oldtimestamp < 10 (seconds), if within, add to the VALID-list
+    for each_timestamp in user_timestamps:
+        if now - each_timestamp < time_range: 
+            valid_timestamps.append(each_timestamp)
+
+    #dinished the loop, assigned a whole list of VALID-timestamp to be values of the KEY:username in that dict
+    user_timestamp_dict[username] = valid_timestamps
+
+    #check the length (number of) timestamp to dertermine HOW MANY messange and if that exceed the requirements, yet(!>)
+    if len(valid_timestamps) >= mess_limit:
+        return False  #Exceed the limit
+
+    # Ok, "NOW" and the order of NOW-message is accepted, "NOW"-timestamp added to the list dict
+    user_timestamp_dict[username].append(now)
+    return True
+
 async def server_mess(StCmessage):
     clients_disconnected_set = set()
 
@@ -105,6 +139,28 @@ async def server_mess(StCmessage):
 async def server_mess_wrapper(StCmessage):
     await server_mess(f"[SYSTEM]: {StCmessage}") #add label for the mess from servr
 
+async def checking_heartbeat():
+    while True: #loop forever and ever
+        heartbeat_timerange = 12 #wait 12 [seconds]
+        await asyncio.sleep(heartbeat_timerange)
+
+        disconnected_client_set = set()
+
+        for each_client in clients_connected_dict:
+            try:
+                #await each_client.send("Hello!?")
+                await each_client.send("PING")
+            except websockets.ConnectionClosed: #if by any reason, the message is failed to be send
+                disconnected_client_set.add(each_client)
+
+        #modify dict after to avoid crash!
+        for each_client in disconnected_client_set:
+            username = clients_connected_dict.get(each_client, "John Doe") #get name of disconnect client, no name(!?) called as John Doe
+            clients_connected_dict.pop(each_client, None) #remove that disconnected client
+            await server_mess_wrapper(f"{username} disconnected, not listen to server!") #the verdict of server to the all system
+
+mess_limit = 5 # messages
+time_range = 8 # seconds
 # Websocket connection: client connect, this one runs
 async def handler(client_connection):
     await client_connection.send("Enter your username:")
@@ -114,7 +170,7 @@ async def handler(client_connection):
     entered_pass = await client_connection.recv()
     
     #strip the blankspaces in username and passwords
-    username = username.strip().lower()
+    username = username.strip().lower() #username are all lowercase per my choice
     entered_pass = entered_pass.strip()
 
     if username.strip() == "" or entered_pass.strip() == "": 
@@ -157,7 +213,7 @@ async def handler(client_connection):
             return
     elif check_pass(entered_pass, pass_in_database) == False:
         await client_connection.send("Invalid user or password!")
-        return #to leave the program
+        return #to leave the program 
     else: #this case the pass that is save in database is match is password user type in
         if username in clients_connected_dict.values():
             await client_connection.send("User already logged in!")
@@ -170,6 +226,7 @@ async def handler(client_connection):
     else: 
         await client_connection.send("Fail to login!")"""
 
+        #CHAT FUCNTION
     clients_connected_dict[client_connection] = username  #map connection to the username, track login users
 
    #clients_connected_dict.add(client_connection)   #add this sepcific client connection to the set of connected clients
@@ -182,6 +239,8 @@ async def handler(client_connection):
         #while True: #this loop allow users send many mess as they want but mannually, let try to use the async let websocket handle it
          #message = await client_connection.recv() #Await: server wait mess from client while aslo can handler other tasks
          async for message in client_connection:
+            if message == "PONG":
+             continue
             print("received: ", message)
             clients_disconnected_set = set()
             '''for client in clients_connected_set:
@@ -190,7 +249,11 @@ async def handler(client_connection):
                         await client.send(message)'''
             
             sender_name = clients_connected_dict[client_connection]
-
+            if allowed_to_send(sender_name) == False: #change position, wrong place at the last version
+                await client_connection.send("Exceed the number of message amount, please wait 8 seconds!")
+                #return  # Stop further processing if the user is not allowed to send the message
+                #FEB 9 note: wrong :(, this kick out client --?> use continue)
+                continue
             for client in clients_connected_dict:
                 try: 
                     if client != client_connection:
@@ -230,7 +293,11 @@ async def main():
 
         print("Server is running ...")   # hints that sever started
 #4. Server alive by future()
-        await asyncio.Future() #keep server running
+         #await checking_heartbeat() server froze//
+        asyncio.create_task(checking_heartbeat())
+
+        await asyncio.Future() #keep server running, freeze server, no code after this line!!!!
+
 
 
 
