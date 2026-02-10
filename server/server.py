@@ -159,6 +159,27 @@ async def checking_heartbeat():
             clients_connected_dict.pop(each_client, None) #remove that disconnected client
             await server_mess_wrapper(f"{username} disconnected, not listen to server!") #the verdict of server to the all system
 
+async def file_forward(client_connectionCtS, message):
+    #actually to get user name of the sender
+    sender_name = clients_connected_dict[client_connectionCtS]
+
+    path_components = message.split("|")
+    file_name = path_components[1]
+    file_size = int(path_components[2]) #convert the size of the file in metadata STRING to be INT
+
+    print(f"{sender_name} is sending file {file_name}")
+
+    # Shipping the metadata
+    for each_client in clients_connected_dict:
+        if each_client != client_connectionCtS: #make sure that the receiver is actually not the sender
+            await each_client.send(f"file_metadata|{sender_name}|{file_name}|{file_size}")
+
+    file_bytes = await client_connectionCtS.recv()# Receive file_bytes
+
+    for each_client in clients_connected_dict:# Ship file bytes
+        if each_client != client_connectionCtS: #re-check due to another loop
+            await each_client.send(file_bytes) 
+
 mess_limit = 5 # messages
 time_range = 8 # seconds
 # Websocket connection: client connect, this one runs
@@ -230,7 +251,7 @@ async def handler(client_connection):
     clients_connected_dict[client_connection] = username  #map connection to the username, track login users
 
    #clients_connected_dict.add(client_connection)   #add this sepcific client connection to the set of connected clients
-    print("Dictonary of clients connected:", len(clients_connected_dict))
+    print("Number of clients connected:", len(clients_connected_dict))
 
     #print("client connected!") 1st version, replace by system_mess
     #await server_mess_wrapper("client joined this chat")
@@ -241,7 +262,10 @@ async def handler(client_connection):
          async for message in client_connection:
             if message == "PONG":
              continue
-            print("received: ", message)
+            print("received from ", {username}, ":", message)
+            if isinstance(message, str) and message.startswith("file_metadata|"):
+                await file_forward(client_connection, message)
+                continue
             clients_disconnected_set = set()
             '''for client in clients_connected_set:
                 if client != client_connection:

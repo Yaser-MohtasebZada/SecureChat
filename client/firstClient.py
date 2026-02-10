@@ -38,7 +38,7 @@ async def send_mess(Client_Server_connection):
                     continue
                 #command = path_components[0] not need, not work
                 file_name = path_components[1]
-                await file_transfer(Client_Server_connection, file_name)
+                await file_sending(Client_Server_connection, file_name)
                 continue
             
 """async def get_mess(Server_Client_connection):
@@ -49,7 +49,7 @@ async def get_mess(Server_Client_connection):
     async for comming_message_StC in Server_Client_connection:
        
         if comming_message_StC.startswith("file_metadata|"):#check the comming mess begin with file_metadata
-            _, file_name, file_size = comming_message_StC.split("|") 
+            _, sender, file_name, file_size = comming_message_StC.split("|") 
             #take the content between the |, ignore the "file_metadata" by a underscore _
             file_bytes = await Server_Client_connection.recv()
 
@@ -65,8 +65,9 @@ async def get_mess(Server_Client_connection):
             continue
 
         print(f"\n{comming_message_StC}")
+        print("Your message: ", end="", flush=True)
 
-async def file_transfer(CtSconnection, file_name):
+async def file_sending(CtSconnection, file_name):
 
     if os.path.exists(file_name) == False: #check if there is a file with that name and in that category
         print("File does not exist!") 
@@ -80,7 +81,6 @@ async def file_transfer(CtSconnection, file_name):
         print("System cannot help you to sent the file that larger than 3 MB!")
         return
     
-    
     # Send metadata
     await CtSconnection.send(f"file_metadata|{file_name}|{file_size}")
 
@@ -90,6 +90,23 @@ async def file_transfer(CtSconnection, file_name):
         await CtSconnection.send(file_binary_style) #sending stream of bytes to represent the file
 
     print("File is sent!")
+
+async def file_receiving(StCconnection, metadata_string):
+
+    path_components = metadata_string.split("|")
+
+    sender_name = path_components[1]
+    file_name = path_components[2]
+    file_size = int(path_components[3])
+
+    print(f"Receiving the file named {file_name} from {sender_name}")
+
+    #receive file bytes, then save it
+    file_bytes = await StCconnection.recv()
+    with open("received_" + file_name, "wb") as foreign_file:
+        foreign_file.write(file_bytes)
+
+    print("Received and stored successfully")
 
 async def client():
     #1. Creat TLS Context
@@ -102,7 +119,7 @@ async def client():
 
             #await websocket.send("1st Mess OF CLIENT 1")
             #response = await websocket.recv()
-
+          
          #print(response)
             print("Connected to server")
             #await asyncio.gather(send_mess(connection),get_mess(connection) ) #ok, send OR get mess at the mean time, only 1 fnct
