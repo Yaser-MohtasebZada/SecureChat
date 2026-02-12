@@ -26,6 +26,7 @@ pip install -r requirements.txt
 
 # Main files in folders of the project
 SecureChat
+
 ├── server.py  #server file
 
 ├── firstClient.py  #client file
