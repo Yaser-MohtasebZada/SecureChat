@@ -26,19 +26,12 @@ pip install -r requirements.txt
 
 # Main files in folders of the project
 SecureChat
-
 ├── server.py  #server file
-
 ├── firstClient.py  #client file
-
 ├── secondClient.py  #client file
-
 ├── certificate
-
 │   ├── certificate.pem  #not uploaded to GitHub reasons
-
 │   └── privateKey.pem #not uploaded to GitHub reasons
-
 └── users.json #not uploaded to GitHub for security reasons
 
 # Limitations
@@ -59,5 +52,4 @@ SecureChat
 
 # Authors
 Group 3 of CPSC 455 Spring 2026
-
 
