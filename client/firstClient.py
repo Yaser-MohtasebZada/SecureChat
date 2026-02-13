@@ -1,6 +1,6 @@
 import websockets
 import asyncio
-import ssl #Update (Feb4 to use TLS)
+import ssl #Update (Feb4 to use TLS) and import
 import os #for basic file transfer attempts
 
 """async def send_mess(Client_Server_connection):
@@ -10,7 +10,8 @@ import os #for basic file transfer attempts
 """
 async def auth_period(connection):
 
-    loop = asyncio.get_running_loop()
+
+    loop = asyncio.get_running_loop() 
 
     while True:
         server_mess = await connection.recv()
