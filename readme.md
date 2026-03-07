@@ -30,8 +30,8 @@ SecureChat
 ├── firstClient.py  #client file
 ├── secondClient.py  #client file
 ├── certificate
-│   ├── certificate.pem  #not uploaded to GitHub reasons
-│   └── privateKey.pem #not uploaded to GitHub reasons
+│   ├── certificate.pem  #not uploaded to GitHub for some security reasons
+│   └── privateKey.pem #not uploaded to GitHub for some security reasons
 └── users.json #not uploaded to GitHub for security reasons
 
 # Limitations
@@ -41,15 +41,17 @@ SecureChat
 - Does not have chat history.
 
 # Future developments
-- In-deptH user creation and validation.
-- In details handling the system and client connection.
+- In-depth user creation and validation.
+- In detail, handling the system and client connection.
 - Storing user chat history.
 - A basic GUI for the SecureChat.
+  A SAN document, fixing the chat labels bug
 
 # A running demo 
-- The link will be posted after the demo be made:
+- The link will be posted after the demo is made:
 - Approximate release date: February 13, 2026.
 
 # Authors
 Group 3 of CPSC 455 Spring 2026
+
 
