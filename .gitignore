@@ -4,4 +4,7 @@ venv/
 *.key
 __pycache__/
 *.crt
+.env
+*.csr
+*.cnf
 users.json
