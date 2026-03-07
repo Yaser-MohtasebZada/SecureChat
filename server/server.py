@@ -4,28 +4,32 @@ import ssl #to have implement TLS
 import bcrypt  #not using hashlib because it use SHA256, too fast and being victimed to brute-force
 import json #to save users to permanent after being hashed, because hash change every single time server reload.
 import time
-import os #to handle the hidden real IP of server.
+
+# NEW PART 1: SAN + hidden server IP (Mar 6)
+import os
+
 
 from dotenv import load_dotenv
-load_dotenv("../.env")
 
+load_dotenv("../.env")
 IP_Of_Server = os.getenv("Server_IP")
-Port_Of_Server = int(os.getenv("Server_Port"))
-#Coder check :D
-#print("Server IP:", IP_Of_Server)
-#print("Server PORT:", Port_Of_Server)
+Port_Of_Server = os.getenv("Server_Port")
+
+# Block login (Against brute-force - MAR 7)
+failed_attempts_dict = {}  # KEY: username -> VALUES: [attempt_count, last_attempt_time]
+
+max_attemps_allowed = 3 #decided to allow 3
+block_login_time = 10 #just block for 10 secs to test the code
 
 last_pong = {} #tracking last pong message
-# part1: Authorize + User storage
-# [1]
-def hash_pass(plain_pass): #hash_stored password
+
+def hash_pass(plain_pass):#hash_stored password
     return bcrypt.hashpw(plain_pass.encode(), bcrypt.gensalt())
 
-#[2]
-def check_pass(plain_pass, hashed): #check password user try to log actually match with stored password
+def check_pass(plain_pass, hashed):#check password user try to log actually match with stored password
     return bcrypt.checkpw(plain_pass.encode(), hashed)
 
-#[3]
+
 def load_users(): #load user info in user.json into memory
     try:
         with open("users.json", "r") as file: #"with" - close file after 'r'-read only mode
@@ -51,8 +55,6 @@ registered_users = {
     "carlos": hash_pass("-----")
 }"""
 registered_users = load_users()
-
-#[4]
 #updating users.json if needed when new user create accounts
 def save_users(users_list_dict):
     json_style_data = {} #create empty dict
@@ -72,7 +74,6 @@ def save_users(users_list_dict):
 #IMPORTANT: multi-connect neeed to be outside fucnts, act globally
 #clients_connected_set = set() replace becaue want to know NAME of client
 clients_connected_dict = {} #store name of client
-
 #[5] Check password if matched
 def validate_password(password):
     if len(password) < 8:
@@ -108,8 +109,6 @@ async def system_announcement(system_Message):
         clients_connected_set.discard(each_client)
   """
 
-
-
 user_timestamp_dict = {}   # KEY: username -> PAIR VALUE: timestamps
 
 #valid_timestamps = []
@@ -140,7 +139,6 @@ def allowed_to_send(username):
     # Ok, "NOW" and the order of NOW-message is accepted, "NOW"-timestamp added to the list dict
     user_timestamp_dict[username].append(now)
     return True
-
 #message system 
 async def server_mess(StCmessage):
     clients_disconnected_set = set()
@@ -157,7 +155,6 @@ async def server_mess(StCmessage):
 
 async def server_mess_wrapper(StCmessage):
     await server_mess(f"[SYSTEM]: {StCmessage}") #add label for the mess from servr
-#--------------------------------------------------------------------------------------------------------------------------------#
 
 async def checking_heartbeat():
     while True: #loop forever and ever
@@ -171,8 +168,13 @@ async def checking_heartbeat():
             try:
                 #await each_client.send("Hello!?")
                 await each_client.send("PING")
-                if now - last_pong.get(each_client, 0) > 12: #NOT RESPONSE AFTER 12 SECONDS, CLIENT IS "Dead"
-                    disconnected_client_set.add(each_client)
+                last_time = last_pong.get(each_client)
+
+                if last_time is not None: # Only check if we have a record for them
+                    if now - last_time > 12:
+                        disconnected_client_set.add(each_client)
+                #if now - last_pong.get(each_client, 0) > 12: #NOT RESPONSE AFTER 12 SECONDS, CLIENT IS "Dead"
+                 #   disconnected_client_set.add(each_client)
             except websockets.ConnectionClosed: #if by any reason, the message is failed to be send
                 disconnected_client_set.add(each_client)
 
@@ -182,7 +184,6 @@ async def checking_heartbeat():
             clients_connected_dict.pop(each_client, None) #remove that disconnected client
             last_pong.pop(each_client, None)
             await server_mess_wrapper(f"{username} disconnected, not listen to server!") #the verdict of server to the all system
-
 
 async def file_forward(client_connectionCtS, message):
     #actually to get user name of the sender
@@ -205,10 +206,41 @@ async def file_forward(client_connectionCtS, message):
         if each_client != client_connectionCtS: #re-check due to another loop
             await each_client.send(file_bytes) 
 
+def allowed_to_try_login(username):
+    now = time.time()
+    if username not in failed_attempts_dict:  return True#New user is OK
+
+    # defaule is 0 if not found
+    attempt_No = failed_attempts_dict[username][0] #check the No. of fail
+    last_time = failed_attempts_dict[username][1] #take the timestamp to compare
+
+    if attempt_No < max_attemps_allowed: 
+        return True #allowed
+    else:
+        wait_time = now - last_time
+        if wait_time > block_login_time:
+            failed_attempts_dict[username] = [0,0] #reset the record of that user
+            return True
+        else: 
+            return False #not allowed
+
+
+def record_failed_login(username):
+    now = time.time()
+    if username not in failed_attempts_dict:
+        failed_attempts_dict[username] = [1, now] #first time FAIL, that attempt numbered as "1" (1ST TIME)
+    else:
+        failed_attempts_dict[username][0]= failed_attempts_dict[username][0] + 1 #otherwise, add 1 to the 1st value of dic, which is attemp_No
+        failed_attempts_dict[username][1] = now #timestamp of the fail try go to dic
+
+def reset_login(username): #Login successfully, then clear the record of Fail attempts
+    if username in failed_attempts_dict:  del failed_attempts_dict[username]
+
 mess_limit = 5 # messages
 time_range = 8 # seconds
 # Websocket connection: client connect, this one runs
 async def handler(client_connection):
+    last_pong[client_connection] = time.time()
     await client_connection.send("Enter your username:")
     username = await client_connection.recv()
 
@@ -222,6 +254,10 @@ async def handler(client_connection):
     if username.strip() == "" or entered_pass.strip() == "": 
         #strip() clear the white space to make sure if client acidently left white sapce after/before, it is ok
         await client_connection.send("Username or password cannot be empty")
+        return
+
+    if allowed_to_try_login(username) == False:
+        await client_connection.send("Come back later, many fail attempts!")
         return
 
     pass_in_database = registered_users.get(username) #use username as a key to find with its pair, which is real password
@@ -258,6 +294,7 @@ async def handler(client_connection):
             await client_connection.send("Restart login.")
             return
     elif check_pass(entered_pass, pass_in_database) == False:
+        record_failed_login(username) #mar 7: fails --> record to track fails attempts!
         await client_connection.send("Invalid user or password!")
         return #to leave the program 
     else: #this case the pass that is save in database is match is password user type in
@@ -265,6 +302,8 @@ async def handler(client_connection):
             await client_connection.send("User already logged in!")
             return
         await client_connection.send("LOGIN SUCCESS")
+        reset_login(username) #mar 7: in the mean time, let reset the fail login attempt if user remmember pass and login successfully
+        #also by that, when we testing, not need to create many new accounts
         print(f"{username} logged in successfully")
 
     """if registered_users.get(username) == password:
@@ -328,8 +367,6 @@ async def handler(client_connection):
         print(f"{username} disconnected")
         await server_mess_wrapper(f"{username} left the chat")
 
-
-
 #1.main function 
 async def main():
 
@@ -343,7 +380,7 @@ async def main():
     #3.websocket run
     #async with websockets.serve( handler,port=7777,host="0.0.0.0", ssl=ssl_TLScontext): #Mar 6, change local host to 0.0.0.0 to handle all case.
     #MAR 6B: Change to .env to hide the real IP
-    async with websockets.serve(handler, host="0.0.0.0", port=Port_Of_Server, ssl=ssl_TLScontext):
+    async with websockets.serve(handler, host="0.0.0.0", port=int(Port_Of_Server), ssl=ssl_TLScontext):
 
         print("Server is running ...")   # hints that sever started
 #4. Server alive by future()
@@ -351,9 +388,6 @@ async def main():
         asyncio.create_task(checking_heartbeat())
 
         await asyncio.Future() #keep server running, freeze server, no code after this line!!!!
-
-
-
 
 asyncio.run(main()) #run command to the sever
 

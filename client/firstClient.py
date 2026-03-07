@@ -12,6 +12,22 @@ IP_Of_Server = os.getenv("Server_IP")
 Port_Of_Server = os.getenv("Server_Port")
 #----------------------------------------
 
+emojis_DICT = {
+    ":thumbs_up:": "👍",
+    ":cry:": "😢",
+    ":heart:": "❤️",
+    ":broken_heart:": "💔",
+    ":monocle:" : "🧐",
+    ":laugh:": "😆",
+}
+
+def giveout_emojis(emo_code):
+    """
+    Replace emoji codes like :smile: with their Unicode emoji
+    """
+    for code, emoji in emojis_DICT.items(): emo_code = emo_code.replace(code, emoji)
+    return emo_code
+
 """async def send_mess(Client_Server_connection):
     while True: #asking for mess as always
         CtSmessage = input("Your message: ")
@@ -41,6 +57,7 @@ async def send_mess(Client_Server_connection):
         print("Your message: ", end="", flush=True)
         CtSmessage = await loop.run_in_executor(None, input, "")
         
+        CtSmessage = giveout_emojis(CtSmessage)
 
         if CtSmessage.startswith("/file "):
                 path_components = CtSmessage.split(" ", 1)
@@ -51,7 +68,6 @@ async def send_mess(Client_Server_connection):
                 file_name = path_components[1]
                 await file_sending(Client_Server_connection, file_name)
                 continue
-        
         await Client_Server_connection.send(CtSmessage)
             
 """async def get_mess(Server_Client_connection):
@@ -121,11 +137,16 @@ async def file_receiving(StCconnection, metadata_string):
 
     print("Received and stored successfully")
 
+
+
 async def client():
     #1. Creat TLS Context
     ssl_TLScontext= ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT) #differ from PROTOCAL_TLS_SERVER (this one is user)
     ssl_TLScontext.load_verify_locations("../certificate/certificate.pem")     #check the certificate from server
      
+    ssl_TLScontext.check_hostname = False
+    ssl_TLScontext.verify_mode = ssl.CERT_REQUIRED
+
      #2. Connect, change ws to wss uri=Uniform Resource Identifier - how to access the file
     while True:#repeate the block, not get user out, even the connection disconnect as exeption block
         try:
@@ -147,6 +168,7 @@ async def client():
 
         except Exception as Close_Reconnect:
             print("Disconnected ...")
+            print(f"Connection error: {Close_Reconnect}")
             print("System is trying to reconnect you in 2 seconds...")
             await asyncio.sleep(2)
 
