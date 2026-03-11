@@ -3,12 +3,20 @@ import websockets       # websocket library //help make server communicate in re
 import ssl #to have implement TLS
 import bcrypt  #not using hashlib because it use SHA256, too fast and being victimed to brute-force
 import json #to save users to permanent after being hashed, because hash change every single time server reload.
-import time
+import time #From MAR 9, even use for chat_logs!
 
 # NEW PART 1: SAN + hidden server IP (Mar 6)
 import os
 
+#MAR 9: CHAT LOGS
+current_timestamp = int(time.time())
+chat_log_record = f"chat_logs/chat_{current_timestamp}.txt"
 
+def write_mess_to_log(chat_messages):
+    with open(chat_log_record, "a") as log_file:
+        log_file.write(chat_messages + "\n")
+
+#MAR 6: SAN and hide Server IP
 from dotenv import load_dotenv
 
 load_dotenv("../.env")
@@ -74,6 +82,8 @@ def save_users(users_list_dict):
 #IMPORTANT: multi-connect neeed to be outside fucnts, act globally
 #clients_connected_set = set() replace becaue want to know NAME of client
 clients_connected_dict = {} #store name of client
+clients_p_keys = {}
+
 #[5] Check password if matched
 def validate_password(password):
     if len(password) < 8:
@@ -154,7 +164,10 @@ async def server_mess(StCmessage):
         clients_connected_dict.pop(each_client, None)
 
 async def server_mess_wrapper(StCmessage):
-    await server_mess(f"[SYSTEM]: {StCmessage}") #add label for the mess from servr
+    log_line = f"[SYSTEM] {StCmessage}"
+    write_mess_to_log(log_line)
+    await server_mess(log_line)
+    #await server_mess(f"[SYSTEM]: {StCmessage}") #add label for the mess from servr #UPDATE TO LOG ON MAR 9
 
 async def checking_heartbeat():
     while True: #loop forever and ever
@@ -183,6 +196,7 @@ async def checking_heartbeat():
             username = clients_connected_dict.get(each_client, "John Doe") #get name of disconnect client, no name(!?) called as John Doe
             clients_connected_dict.pop(each_client, None) #remove that disconnected client
             last_pong.pop(each_client, None)
+            clients_p_keys.pop(each_client, None) #remove pub key, also!
             await server_mess_wrapper(f"{username} disconnected, not listen to server!") #the verdict of server to the all system
 
 async def file_forward(client_connectionCtS, message):
@@ -194,6 +208,7 @@ async def file_forward(client_connectionCtS, message):
     file_size = int(path_components[2]) #convert the size of the file in metadata STRING to be INT
 
     print(f"{sender_name} is sending file {file_name}")
+    write_mess_to_log(f"{sender_name} sent file: {file_name}")
 
     # Shipping the metadata
     for each_client in clients_connected_dict:
@@ -238,134 +253,181 @@ def reset_login(username): #Login successfully, then clear the record of Fail at
 
 mess_limit = 5 # messages
 time_range = 8 # seconds
-# Websocket connection: client connect, this one runs
+
 async def handler(client_connection):
-    last_pong[client_connection] = time.time()
-    await client_connection.send("Enter your username:")
-    username = await client_connection.recv()
-
-    await client_connection.send("Enter your password:")
-    entered_pass = await client_connection.recv()
-    
-    #strip the blankspaces in username and passwords
-    username = username.strip().lower() #username are all lowercase per my choice
-    entered_pass = entered_pass.strip()
-
-    if username.strip() == "" or entered_pass.strip() == "": 
-        #strip() clear the white space to make sure if client acidently left white sapce after/before, it is ok
-        await client_connection.send("Username or password cannot be empty")
-        return
-
-    if allowed_to_try_login(username) == False:
-        await client_connection.send("Come back later, many fail attempts!")
-        return
-
-    pass_in_database = registered_users.get(username) #use username as a key to find with its pair, which is real password
-
-    """if pass_in_database is None: #this case, username not exist, so clearly no password/pair found
-        await client_connection.send("Invalid username or password")
-        return"""
-    #elif pass_in_database != entered_pass: #the password not correct
-    # check if username exists in database
-    if pass_in_database is None:
-        await client_connection.send("Type R to create new account with this username or L to retry login")
-
-        user_decision = (await client_connection.recv()).strip().upper() #force the input to uppercase, also strip the blankspace
-        if user_decision == "R":
-            while True:
-                await client_connection.send("Choose your password:")
-                newuser_pass = (await client_connection.recv()).strip()
-
-                valid, message = validate_password(newuser_pass)
-
-                if valid: break
-
-                await client_connection.send(message)
-
-            hashed_password = hash_pass(newuser_pass) #hashing the pass the user just create by hash_pass()
-            registered_users[username] = hashed_password
-
-            save_users(registered_users) #save user to file by save_users()
-            await client_connection.send("Account created. Connection is ended, please connect again.")
-            #entered_pass = newuser_pass
-            #pass_in_database = registered_users.get(username)
-            return
-        else:
-            await client_connection.send("Restart login.")
-            return
-    elif check_pass(entered_pass, pass_in_database) == False:
-        record_failed_login(username) #mar 7: fails --> record to track fails attempts!
-        await client_connection.send("Invalid user or password!")
-        return #to leave the program 
-    else: #this case the pass that is save in database is match is password user type in
-        if username in clients_connected_dict.values():
-            await client_connection.send("User already logged in!")
-            return
-        await client_connection.send("LOGIN SUCCESS")
-        reset_login(username) #mar 7: in the mean time, let reset the fail login attempt if user remmember pass and login successfully
-        #also by that, when we testing, not need to create many new accounts
-        print(f"{username} logged in successfully")
-
-    """if registered_users.get(username) == password:
-        await client_connection.send("Login susscefully, welcome!")
-    else: 
-        await client_connection.send("Fail to login!")"""
-
-        #CHAT FUCNTION
-    clients_connected_dict[client_connection] = username  #map connection to the username, track login users
-    last_pong[client_connection] = time.time()
-
-   #clients_connected_dict.add(client_connection)   #add this sepcific client connection to the set of connected clients
-    print("Number of clients connected:", len(clients_connected_dict))
-
-    #print("client connected!") 1st version, replace by system_mess
-    #await server_mess_wrapper("client joined this chat")
-    await server_mess_wrapper(f"{username} joined the chat")
     try:
-        #while True: #this loop allow users send many mess as they want but mannually, let try to use the async let websocket handle it
-         #message = await client_connection.recv() #Await: server wait mess from client while aslo can handler other tasks
-         async for message in client_connection:
-            if message == "PONG":
-                last_pong[client_connection] = time.time()
-                continue
-            print("received from ", {username}, ":", message)
-            if isinstance(message, str) and message.startswith("file_metadata|"):
-                await file_forward(client_connection, message)
-                continue
-            clients_disconnected_set = set()
-            '''for client in clients_connected_set:
-                if client != client_connection:
-                    try:
-                        await client.send(message)'''
+        last_pong[client_connection] = time.time()
+
+        await client_connection.send("Enter your username:")
+        username = await client_connection.recv()
+
+        await client_connection.send("Enter your password:")
+        entered_pass = await client_connection.recv()
+        
+        #strip the blankspaces in username and passwords
+        username = username.strip().lower() #username are all lowercase per my choice
+        entered_pass = entered_pass.strip()
+
+        if username.strip() == "" or entered_pass.strip() == "": 
+            #strip() clear the white space to make sure if client acidently left white sapce after/before, it is ok
+            await client_connection.send("Username or password cannot be empty")
+            return
+
+        if allowed_to_try_login(username) == False:
+            await client_connection.send("Come back later, many fail attempts!")
+            return
+
+        pass_in_database = registered_users.get(username) #use username as a key to find with its pair, which is real password
+
+        #if pass_in_database is None: #this case, username not exist, so clearly no password/pair found
+         #   await client_connection.send("Invalid username or password")
+          #  return
+        #elif pass_in_database != entered_pass: #the password not correct
+        # check if username exists in database
+        if pass_in_database is None:
+            await client_connection.send("Type R to create new account with this username or L to retry login")
+
+            user_decision = (await client_connection.recv()).strip().upper() #force the input to uppercase, also strip the blankspace
+            if user_decision == "R":
+                while True:
+                    await client_connection.send("Choose your password:")
+                    newuser_pass = (await client_connection.recv()).strip()
+
+                    valid, message = validate_password(newuser_pass)
+
+                    if valid: break
+
+                    await client_connection.send(message)
+
+                hashed_password = hash_pass(newuser_pass) #hashing the pass the user just create by hash_pass()
+                registered_users[username] = hashed_password
+                save_users(registered_users) #save user to file by save_users()
+                await client_connection.send("LOGIN SUCCESS")
+                return
             
-            sender_name = clients_connected_dict[client_connection]
-            if allowed_to_send(sender_name) == False: #change position, wrong place at the last version
-                await client_connection.send("Exceed the number of message amount, please wait 8 seconds!")
-                #return  # Stop further processing if the user is not allowed to send the message
-                #FEB 9 note: wrong :(, this kick out client --?> use continue)
-                continue
-            for client in clients_connected_dict:
-                try: 
+            #await client_connection.send("Account created. Connection is ended, please connect again.")
+                #await client_connection.close() 
+                    
+
+                #entered_pass = newuser_passs
+                #pass_in_database = registered_users.get(username)
+                #return
+            else:
+                await client_connection.send("Restart login.")
+                return
+
+        elif check_pass(entered_pass, pass_in_database) == False:
+            record_failed_login(username) #mar 7: fails --> record to track fails attempts!
+            await client_connection.send("Invalid user or password!")
+            return # leave the program 
+
+        else: #this case the pass that is save in database is match is password user type in
+            if username in clients_connected_dict.values():
+                await client_connection.send("User already logged in!")
+                return
+
+            await client_connection.send("LOGIN SUCCESS")
+
+            #Late MAR 9:Fix E2EE issues, MAR8 code is incorrect.
+            await client_connection.send("pub_key_sending")
+
+            p_key = await client_connection.recv()
+
+            clients_p_keys[client_connection] = p_key
+
+            # send existing users' keys to new client
+            for each_client, other_username in clients_connected_dict.items():
+                if each_client != client_connection:
+                    other_client_key = clients_p_keys.get(each_client)
+
+                    if other_client_key is not None:
+                        # FIX: must decode or client cannot load PEM
+                        await client_connection.send(
+                            f"PUBLIC_KEY|{other_username}|{other_client_key.decode()}"
+                        )
+
+            reset_login(username) #mar 7: reset fail attempts if login successful
+            print(f"{username} logged in successfully")
+
+       
+
+            #CHAT FUCNTION
+        clients_connected_dict[client_connection] = username  #map connection to the username, track login users
+        last_pong[client_connection] = time.time()
+
+        print("Number of clients connected:", len(clients_connected_dict))
+
+        #print("client connected!") 1st version, replace by system_mess
+        #await server_mess_wrapper("client joined this chat")
+        await server_mess_wrapper(f"{username} joined the chat")
+
+        #new client public key
+        for each_client in clients_connected_dict:
+            if each_client != client_connection:
+                # FIX: decode PEM before sending
+                await each_client.send(f"PUBLIC_KEY|{username}|{p_key.decode()}")
+
+        try:
+            #while True: #this loop allow users send many mess as they want but mannually, let try to use the async let websocket handle it
+            #message = await client_connection.recv() #Await: server wait mess from client while aslo can handler other tasks
+            async for message in client_connection:
+
+                if message == "PONG":
+                    last_pong[client_connection] = time.time()
+                    continue
+
+                print("received from ", username, ":", message)
+
+                write_mess_to_log(f"{username}: {message}") #add this line to track and write log
+
+                if isinstance(message, str) and message.startswith("file_metadata|"):
+                    await file_forward(client_connection, message)
+                    continue
+
+                clients_disconnected_set = set()
+
+                '''for client in clients_connected_set:
                     if client != client_connection:
-                        await client.send(f"{sender_name}: {message}")
-                except websockets.ConnectionClosed:
-                         clients_disconnected_set.add(client)
+                        try:
+                            await client.send(message)'''
 
-            for client in clients_disconnected_set:
-                clients_connected_dict.pop(client, None)  #discard is better than remove, but in dict, this funct is "pop"
-         #await client_connection.send("Message is received through TLS") #Sever send mess to 1 client
-            #await server_mess(message) #system now annouce to everyone 
-    except websockets.ConnectionClosed:
-        print("client disconnected unexpected :()")
+                sender_name = clients_connected_dict[client_connection]
 
-    finally: #for anny incidents that may happeneds, client lost the connection, seens as disconnection
-        #clients_connected_set.discard(client_connection) #better than remove
-        #print("client disconnected!") old version
-        #await server_mess_wrapper("client left this chat")
-        username = clients_connected_dict.get(client_connection, "Unknown")
-        clients_connected_dict.pop(client_connection, None)
-        print(f"{username} disconnected")
-        await server_mess_wrapper(f"{username} left the chat")
+                if allowed_to_send(sender_name) == False:
+                    await client_connection.send("Exceed the number of message amount, please wait 8 seconds!")
+                    continue
+
+                for client in clients_connected_dict:
+                    try: 
+                        if client != client_connection:
+                            #await client.send(f"{sender_name}: {message}") MAR 9: Now have JSON package,
+                            await client.send(f"{message}")
+
+                    except websockets.ConnectionClosed:
+                        clients_disconnected_set.add(client)
+
+                for client in clients_disconnected_set:
+                    clients_connected_dict.pop(client, None)
+
+            #await client_connection.send("Message is received through TLS")
+            #await server_mess(message)
+
+        except websockets.ConnectionClosed:
+            print("client disconnected unexpected :()")
+
+        finally:
+            username = clients_connected_dict.get(client_connection, "Unknown")
+            clients_connected_dict.pop(client_connection, None)
+            clients_p_keys.pop(client_connection, None) #delete the public keys
+            print(f"{username} disconnected")
+            await server_mess_wrapper(f"{username} left the chat")
+
+    except Exception as e:
+        print("ERROR [handler]:", repr(e))
+        try:
+            await client_connection.send(f"SERVER ERROR: {e}")
+        except:
+            pass
 
 #1.main function 
 async def main():

@@ -8,3 +8,4 @@ __pycache__/
 *.csr
 *.cnf
 users.json
+server/chat_logs/
