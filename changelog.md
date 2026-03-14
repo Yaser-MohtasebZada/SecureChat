@@ -221,4 +221,13 @@ CPSC 455 - GROUP 3 - SPRING 2026
 - Users easily go offline, so it needs to be focused
 - Testing with the 3rd account
 
+# 14 MAR 2026 EVE (Released to v0.9.1)
+## Fixed
+- Now two users can see the plaintext message
 
+## Progress
+- Dealing with very strict Chrome requirements with SAN, may have to test on different devices USING Firefox.
+
+## Planned
+- Users easily go offline, so it needs to be focused
+- Testing with the 3rd account

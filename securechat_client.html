@@ -375,9 +375,29 @@ function scheduleReconnect(){
   },2000);
 }
 
+/*
 function startHeartbeat(){
   clearInterval(heartbeatTimer);
-  heartbeatTimer=setInterval(()=>{ if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'ping'})); },15000);
+  heartbeatTimer = setInterval(()=>{ 
+    if(ws&&ws.readyState===1) 
+    ws.send(JSON.stringify({type:'ping'})); }, 25000); //25 SECs
+}*/
+
+function refreshOnlineUsers(){
+    if(ws && ws.readyState === 1){
+        ws.send(JSON.stringify({type:'get_users'}));
+    }
+}
+setInterval(refreshOnlineUsers, 22000);//call every 22 secs
+
+function startHeartbeat(){
+  clearInterval(heartbeatTimer);
+  heartbeatTimer = setInterval(() => { 
+    if(ws && ws.readyState===1){
+        ws.send(JSON.stringify({type:'ping'}));
+        ws.send(JSON.stringify({type:'get_users'})); // refresh online users
+    }
+  }, 25000);
 }
 
 // ── MESSAGE HANDLER ─────────
@@ -431,12 +451,24 @@ async function handleMsg(raw){ //async to use "await" [mar13]
     if(currentChat) appendSystemMsg(d.content);
     return;
   }
-  if(d.type==='message'){
-    const from=d.from;
-    if(!chatHistories[from]) chatHistories[from]=[];
-    chatHistories[from].push({kind:'text',from,content:d.content,time:d.time||nowHM()});
-    if(currentChat===from){ 
-      //appendMsg(from,d.content,false,d.time||nowHM()); 
+  if(d.type === 'message'){
+    const senderId = d.from;
+    //decrypt before storing and display
+    let decrypted_Text = d.content;
+    let decryption_Key = chat_AES_Keys[senderId];
+
+    if(decryption_Key){
+        decrypted_Text = await decrypt_AES(decryption_Key, decrypted_Text);
+    }
+
+    if(!chatHistories[senderId]) chatHistories[senderId] = [];
+    //chatHistories[from].push({kind:'text', from, content:d.content, time:d.time||nowHM()});
+    chatHistories[senderId].push({
+      kind:'text', from:senderId, content:decrypted_Text, time:d.time||nowHM()});
+
+    if(currentChat === senderId){ 
+      //appendMsg(from, d.content, false, d.time||nowHM()); 
+      /* MOV to above MAR 14
       let content = d.content;
 
       let key = chat_AES_Keys[from];
@@ -444,11 +476,14 @@ async function handleMsg(raw){ //async to use "await" [mar13]
       if(key){
           content = await decrypt_AES(key,content);
       }
-
-      appendMsg(from,content,false,d.time||nowHM());
+      */
+      appendMsg(senderId, decrypted_Text, false, d.time||nowHM());
       scrollBottom(); 
       }
-    else{ unreadCounts[from]=(unreadCounts[from]||0)+1; renderUserList(); showToast(`New message from ${from}: ...`); }
+    else{ 
+      unreadCounts[senderId]=(unreadCounts[senderId]||0)+1; 
+      renderUserList(); 
+      showToast(`New message from ${senderId}: ...`); }
     return;
   }
   /*
@@ -462,26 +497,26 @@ async function handleMsg(raw){ //async to use "await" [mar13]
   }*/
 
   if(d.type === 'file'){
-      const senderId=d.from;
-      let decrypted_Data=d.data;
+      const senderId = d.from;
+      let decrypted_Data = d.data;
       let session_Key = chat_AES_Keys[senderId];
 
       if(session_Key){
-          decrypted_Data = await decrypt_AES(session_Key,decrypted_Data);
+          decrypted_Data = await decrypt_AES(session_Key, decrypted_Data);
       }
 
-      if(!chatHistories[senderId]) chatHistories[senderId]=[];
+      if(!chatHistories[senderId]) chatHistories[senderId] = [];
       chatHistories[senderId].push({
           kind:'file', senderId, filename:d.filename,
           size:d.size, secret_message: decrypted_Data, time:d.time||nowHM()
       });
 
       if(currentChat === senderId){
-          appendFileReceived(senderId,d.filename,d.size,decrypted_Data,d.time||nowHM());
+          appendFileReceived(senderId, d.filename, d.size, decrypted_Data, d.time||nowHM());
           scrollBottom();
       }
       else{
-          unreadCounts[senderId]=(unreadCounts[senderId]||0)+1;
+          unreadCounts[senderId] = (unreadCounts[senderId]|| 0)+1;
           renderUserList();
           showToast(`File from ${senderId}: ${d.filename}`);
       }
@@ -509,6 +544,10 @@ async function handleMsg(raw){ //async to use "await" [mar13]
         false,
         ["encrypt","decrypt"]
     );
+
+    console.log("AES key stored for:", d.user);
+    console.log("Current chat:", currentChat);
+
     return;
 }
 }
@@ -634,7 +673,8 @@ async function sendMessage() {
     const timestamp = nowHM();
     if (!chatHistories[currentChat]) chatHistories[currentChat] = [];
     chatHistories[currentChat].push({
-        kind:'text', from: myUsername, content: encrypted_Text, //note that I always store encrypted
+        kind:'text', from: myUsername, content: plain_Text,
+        //content: encrypted_Text, //note that I always store encrypted [INCORRECT]
         time: timestamp});
 
     //rendering mess
@@ -813,7 +853,7 @@ async function create_Key_Pair() {
         true, ["encrypt", "decrypt"] 
         );
 }
-
+/*
 async function export_Pub_Key(){
     const p_key = await crypto.subtle.exportKey(
         "spki",
@@ -821,6 +861,17 @@ async function export_Pub_Key(){
     );
 
     return btoa(String.fromCharCode(...new Uint8Array(p_key)));
+} CAUSING MISMATCH WITH SERVER WHEN MESSAGING - MAR 14*/
+
+async function export_Pub_Key() {
+    const p_key = await crypto.subtle.exportKey("spki", RSA_Key_Pair.publicKey);
+    const base_64 = btoa(String.fromCharCode(...new Uint8Array(p_key)));
+
+    const pem_formated =
+        "-----BEGIN PUBLIC KEY-----\n" +
+        base_64.match(/.{1,64}/g).join("\n") +
+        "\n-----END PUBLIC KEY-----";
+    return pem_formated;
 }
 
 async function encrypt_AES(crypt_Key, mess) {

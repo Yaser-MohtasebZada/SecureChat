@@ -12,6 +12,8 @@ from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 import base64
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM #MAR 14: To update like the final decision at the HTML client
 
 mess_limit = 5 # messages
 time_range = 8 # seconds
@@ -49,6 +51,7 @@ def write_mess_to_log(user1, user2, chat_message):
         chatlog_file.write(chat_message + "\n")
 
 #MAR 12: NEW DECRYPT-ENCRYPT:
+"""
 def encrypt_aes(key, plaintext):
     IV = os.urandom(16)
     cipher = Cipher(algorithms.AES(key), modes.CFB(IV))
@@ -62,6 +65,26 @@ def decrypt_aes(key, ciphertext_b64):
     cipher = Cipher(algorithms.AES(key), modes.CFB(IV))
     decryptor = cipher.decryptor()
     return (decryptor.update(ct) + decryptor.finalize()).decode()
+"""
+#MAR 14: Update to AES-GCM
+def encrypt_aes(encryption_key, plain_text):
+    iv = os.urandom(12)
+
+    aesgcm = AESGCM(encryption_key)
+    crypted_Text = aesgcm.encrypt(iv, plain_text.encode(), None)
+
+    return base64.b64encode(iv + crypted_Text).decode()
+
+def decrypt_aes(decryption_key, crypted_text_base64):
+    encrypted_blob = base64.b64decode(crypted_text_base64)
+
+    iv = encrypted_blob[:12]
+    crypted_Text = encrypted_blob[12:]
+
+    aesgcm = AESGCM(decryption_key)
+    decrypted_message = aesgcm.decrypt(iv, crypted_Text, None)
+
+    return decrypted_message.decode()
 
 #MAR 6: SAN and hide Server IP
 from dotenv import load_dotenv
@@ -435,10 +458,11 @@ async def handler(socket):
                     continue
                     
                 users_pair = tuple(sorted([username, target_user]))
-                #[NEW] encrypt mess [mar 13]
-                aes_key = aes_session_keys.get(users_pair)
-                if aes_key:
-                    content = encrypt_aes(aes_key, content)
+                #[NEW] encrypt mess [mar 13], cancelled MAR 14
+                #aes_key = aes_session_keys.get(users_pair)
+                #if aes_key:
+                #    content = encrypt_aes(aes_key, content)
+                content = incoming_data.get("content")
 
                 #create new session for new pair
                 if users_pair not in active_chat_pairs:
@@ -473,9 +497,9 @@ async def handler(socket):
 
                 users_pair = tuple(sorted([username, target]))
                 #encrypt file transfer [mar 13]
-                aes_key = aes_session_keys.get(users_pair)
-                if aes_key:
-                    data = encrypt_aes(aes_key, data)
+                #aes_key = aes_session_keys.get(users_pair)
+                #if aes_key:
+                #    data = encrypt_aes(aes_key, data)
 
                 for client_socket, uname in clients_connected_dict.items():
                     if uname == target:
@@ -501,14 +525,17 @@ async def handler(socket):
                     aes_key = aes_session_keys[users_pair]
 
                     # encrypt AES key with recipient's RSA public key
-                    from cryptography.hazmat.primitives import serialization
+                    
                     pub_key_obj = serialization.load_pem_public_key(target_pub.encode())
                     enc_key = pub_key_obj.encrypt(
                         aes_key,
                         padding.OAEP(mgf=padding.MGF1(hashes.SHA256()), algorithm=hashes.SHA256(), label=None)
                     )
                     enc_key_b64 = base64.b64encode(enc_key).decode()
-                    await socket.send(json.dumps({"type":"key_response", "user":target_user, "key":enc_key_b64}))      
+                    #await socket.send(json.dumps({"type":"key_response", "user":target_user, "key":enc_key_b64}))   
+                    for client_socket, uname in clients_connected_dict.items():
+                        if uname == target_user:
+                            await client_socket.send(json.dumps({"type":"key_response", "user": username,"key": enc_key_b64  }))   
 
     except websockets.ConnectionClosed:
         print(f"{username or 'Dont know who'} disconnected")
