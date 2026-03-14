@@ -166,3 +166,59 @@ CPSC 455 - GROUP 3 - SPRING 2026
 - Fix chatlog to ensure separate storage
 - Look at potentially updating file transfer.
 
+# 10 MAR 2026 Evening 
+## Added
+- Tried to fix "your message: " issue
+- Implement basic file secure transfer
+- Fixed chatlog storage file name with session number
+
+## Planned
+- Connect with the GUI
+- Link text format and Emojis on the GUI
+- Video recording plans
+
+# 11 MAR 2026 
+## Added
+- Trying to connect the GUI with the backend code
+
+## Planned
+- Connect with the GUI
+- Link text format and Emojis on the GUI
+- Testing the connection between clients and the server on the network
+
+# 12 MAR 2026 
+## Added
+- GUI finished
+- Fixed firewall rules to allow access from other machines to sthe erver.
+- Changed the server.py to adapt to the GUI
+- Fix features that are in trouble for switching from terminal-based to GUI-based
+
+## Planned
+- The HTML works well with the GUI
+
+## Progress
+- The server actually connected and passed the authentication of the GUI, after testing with WS and WSS.
+- Decided client.py is no longer needed for the project.
+
+# 13 MAR 2026 
+## Added
+- Continuing to fix bugs in both server.py and client.html
+- Update the file forward with the encryption
+- Fixing bugs and ensuring the encryption functions work
+
+## Planned
+- The HTML works well with the GUI, giving actual access to the chat
+
+# 13 MAR 2026 EVE (Released to v0.9)
+## Added
+- A Certificate file for Chrome (test unsuccessfully)
+
+## Progress
+- The first time you can access the chat room
+
+## Planned
+- Fix the chat bugs. Currently, only send the encrypted message through the chat
+- Users easily go offline, so it needs to be focused
+- Testing with the 3rd account
+
+

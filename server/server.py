@@ -8,6 +8,15 @@ import time #From MAR 9, even use for chat_logs!
 # NEW PART 1: SAN + hidden server IP (Mar 6)
 import os
 
+from cryptography.hazmat.primitives.asymmetric import rsa, padding
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+import base64
+
+mess_limit = 5 # messages
+time_range = 8 # seconds
+aes_session_keys = {}
+"""
 #MAR 9: CHAT LOGS
 current_timestamp = int(time.time())
 chat_log_record = f"chat_logs/chat_{current_timestamp}.txt"
@@ -15,6 +24,44 @@ chat_log_record = f"chat_logs/chat_{current_timestamp}.txt"
 def write_mess_to_log(chat_messages):
     with open(chat_log_record, "a") as log_file:
         log_file.write(chat_messages + "\n")
+"""
+chat_sessions = {} # MAR 10 eve: needed for the new chatfile system
+#current_sessionNo = 1  #initialized as session 1, then 2,3,4 etc SINCE MAR 12, not needed anymore because numbered by pairs
+active_chat_pairs = set()
+#NUMBERED BY PAIR:
+def get_session(user1, user2):
+    users_pair = tuple(sorted([user1, user2]))
+    if users_pair not in chat_sessions:
+        chat_sessions[users_pair] = 1 
+    return chat_sessions[users_pair]
+
+#MAR 10 eve: need each chat log per session, so better chat logs are numbered
+def write_mess_to_log(user1, user2, chat_message):
+
+    users_pair = tuple(sorted([user1, user2]))
+
+    #this pair chat the 1st time
+    if users_pair not in chat_sessions: chat_sessions[users_pair] = 1
+
+    session = chat_sessions[users_pair]
+    chat_log_record = f"chat_logs/{users_pair[0]}_{users_pair[1]}_session{session}.txt"
+    with open(chat_log_record, "a", encoding="utf-8") as chatlog_file:
+        chatlog_file.write(chat_message + "\n")
+
+#MAR 12: NEW DECRYPT-ENCRYPT:
+def encrypt_aes(key, plaintext):
+    IV = os.urandom(16)
+    cipher = Cipher(algorithms.AES(key), modes.CFB(IV))
+    encryptor = cipher.encryptor()
+    ciphertext = encryptor.update(plaintext.encode()) + encryptor.finalize()
+    return base64.b64encode(IV + ciphertext).decode() #typo mismatch, fixed: MAR 13
+
+def decrypt_aes(key, ciphertext_b64):
+    raw = base64.b64decode(ciphertext_b64)
+    IV, ct = raw[:16], raw[16:]
+    cipher = Cipher(algorithms.AES(key), modes.CFB(IV))
+    decryptor = cipher.decryptor()
+    return (decryptor.update(ct) + decryptor.finalize()).decode()
 
 #MAR 6: SAN and hide Server IP
 from dotenv import load_dotenv
@@ -81,6 +128,7 @@ def save_users(users_list_dict):
 
 #IMPORTANT: multi-connect neeed to be outside fucnts, act globally
 #clients_connected_set = set() replace becaue want to know NAME of client
+
 clients_connected_dict = {} #store name of client
 clients_p_keys = {}
 
@@ -164,10 +212,15 @@ async def server_mess(StCmessage):
         clients_connected_dict.pop(each_client, None)
 
 async def server_mess_wrapper(StCmessage):
-    log_line = f"[SYSTEM] {StCmessage}"
-    write_mess_to_log(log_line)
-    await server_mess(log_line)
+    sys_log_line = f"[SYSTEM] {StCmessage}"
+    #write_mess_to_log(log_line) remove it, I create new def
+    write_system_log(sys_log_line)
+    await server_mess(sys_log_line)
     #await server_mess(f"[SYSTEM]: {StCmessage}") #add label for the mess from servr #UPDATE TO LOG ON MAR 9
+
+def write_system_log(message):
+    with open("chat_logs/system_log.txt", "a", encoding="utf-8") as sys_log_file:
+        sys_log_file.write(message + "\n")
 
 async def checking_heartbeat():
     while True: #loop forever and ever
@@ -180,11 +233,12 @@ async def checking_heartbeat():
         for each_client in list(clients_connected_dict): #have to fix
             try:
                 #await each_client.send("Hello!?")
-                await each_client.send("PING")
+                #await each_client.send("PING")
+                await each_client.send(json.dumps({"type":"ping"}))
                 last_time = last_pong.get(each_client)
 
                 if last_time is not None: # Only check if we have a record for them
-                    if now - last_time > 12:
+                    if now - last_time > 30: #increase to debug missing list of users
                         disconnected_client_set.add(each_client)
                 #if now - last_pong.get(each_client, 0) > 12: #NOT RESPONSE AFTER 12 SECONDS, CLIENT IS "Dead"
                  #   disconnected_client_set.add(each_client)
@@ -196,19 +250,29 @@ async def checking_heartbeat():
             username = clients_connected_dict.get(each_client, "John Doe") #get name of disconnect client, no name(!?) called as John Doe
             clients_connected_dict.pop(each_client, None) #remove that disconnected client
             last_pong.pop(each_client, None)
-            clients_p_keys.pop(each_client, None) #remove pub key, also!
+            clients_p_keys.pop(username, None) #remove pub key, also!
             await server_mess_wrapper(f"{username} disconnected, not listen to server!") #the verdict of server to the all system
 
 async def file_forward(client_connectionCtS, message):
     #actually to get user name of the sender
-    sender_name = clients_connected_dict[client_connectionCtS]
+    #sender_name = clients_connected_dict[client_connectionCtS]
+    #sender_name = next((u for u, socket in clients_connected_dict.items() if socket == client_connectionCtS), None)
+    sender_name = clients_connected_dict.get(client_connectionCtS)
 
     path_components = message.split("|")
     file_name = path_components[1]
     file_size = int(path_components[2]) #convert the size of the file in metadata STRING to be INT
 
     print(f"{sender_name} is sending file {file_name}")
-    write_mess_to_log(f"{sender_name} sent file: {file_name}")
+    #write_mess_to_log(f"{sender_name} sent file: {file_name}")
+    for each_client, recipient_name in clients_connected_dict.items():
+        if each_client != client_connectionCtS:
+            write_mess_to_log(
+                sender_name,       #sender
+                recipient_name,    #receiver
+                #current_sessionNo, #session number Since MAR 12, not have this parameter anymore
+                f"{sender_name} sent file: {file_name} ({file_size} bytes)"
+            )
 
     # Shipping the metadata
     for each_client in clients_connected_dict:
@@ -251,190 +315,228 @@ def record_failed_login(username):
 def reset_login(username): #Login successfully, then clear the record of Fail attempts
     if username in failed_attempts_dict:  del failed_attempts_dict[username]
 
-mess_limit = 5 # messages
-time_range = 8 # seconds
-
-async def handler(client_connection):
+async def handler(socket):
+    username = None
     try:
-        last_pong[client_connection] = time.time()
+        #for handsake process
+        auth_mess = await socket.recv()
+        try:
+            data = json.loads(auth_mess)
+        except json.JSONDecodeError:
+            await socket.send(json.dumps({"type":"error", "message":"Invalid JSON!!!"}))
+            return  ##close connection if invalid
 
-        await client_connection.send("Enter your username:")
-        username = await client_connection.recv()
+        mess_type = data.get("type")
+        username = (data.get("username") or "").strip().lower()
+        passwd = (data.get("password") or "").strip()
 
-        await client_connection.send("Enter your password:")
-        entered_pass = await client_connection.recv()
+        if not username or not passwd:
+            await socket.send(json.dumps({"type":"auth_fail", "message":"Username or password is empty"}))
+            return
+
+        #Auth procesS
+        if mess_type == "auth":
+            if not allowed_to_try_login(username):
+                await socket.send(json.dumps({
+                    "type":"auth_fail",
+                    "message":f"Too many failed attempts. Try again AFTER {block_login_time} seconds :("}))
+                return
+
+            if username not in registered_users or not check_pass(passwd, registered_users[username]):
+                record_failed_login(username)
+                await socket.send(json.dumps({"type":"auth_fail", "message":"Invalid accounts credentials."}))
+                return
+
+            reset_login(username)
+            await socket.send(json.dumps({"type":"auth_success"}))
+
         
-        #strip the blankspaces in username and passwords
-        username = username.strip().lower() #username are all lowercase per my choice
-        entered_pass = entered_pass.strip()
 
-        if username.strip() == "" or entered_pass.strip() == "": 
-            #strip() clear the white space to make sure if client acidently left white sapce after/before, it is ok
-            await client_connection.send("Username or password cannot be empty")
-            return
-
-        if allowed_to_try_login(username) == False:
-            await client_connection.send("Come back later, many fail attempts!")
-            return
-
-        pass_in_database = registered_users.get(username) #use username as a key to find with its pair, which is real password
-
-        #if pass_in_database is None: #this case, username not exist, so clearly no password/pair found
-         #   await client_connection.send("Invalid username or password")
-          #  return
-        #elif pass_in_database != entered_pass: #the password not correct
-        # check if username exists in database
-        if pass_in_database is None:
-            await client_connection.send("Type R to create new account with this username or L to retry login")
-
-            user_decision = (await client_connection.recv()).strip().upper() #force the input to uppercase, also strip the blankspace
-            if user_decision == "R":
-                while True:
-                    await client_connection.send("Choose your password:")
-                    newuser_pass = (await client_connection.recv()).strip()
-
-                    valid, message = validate_password(newuser_pass)
-
-                    if valid: break
-
-                    await client_connection.send(message)
-
-                hashed_password = hash_pass(newuser_pass) #hashing the pass the user just create by hash_pass()
-                registered_users[username] = hashed_password
-                save_users(registered_users) #save user to file by save_users()
-                await client_connection.send("LOGIN SUCCESS")
+        #registration process
+        elif mess_type == "register":
+            if username in registered_users:
+                await socket.send(json.dumps({"type":"auth_fail", "message":"Username already exists"}))
                 return
+
+            valid, mess = validate_password(passwd)
+            if not valid:
+                await socket.send(json.dumps({"type":"auth_fail", "message":mess}))
+                return
+
+            hashed = hash_pass(passwd)
+            registered_users[username] = hashed
+            save_users(registered_users)
+            await socket.send(json.dumps({"type":"register_success"}))
+
+        else:
+            await socket.send(json.dumps({"type":"error", "message":"Lack of auth/register"}))
+            return
+
+        #after handsake
+        clients_connected_dict[socket] = username
+        last_pong[socket] = time.time()
+
+        """MAR 13 Eve, remove to testing why 2 clients online but not appear in the ONLINE list in GUI
+        #notify
+        for other_socket in clients_connected_dict:
+            if other_socket != socket:
+                try:
+                    await other_socket.send(json.dumps({"type":"user_joined","username":username}))
+                except websockets.ConnectionClosed:
+                    pass
+
+        #provide current userlist
+        await socket.send(json.dumps({"type":"user_list","users":[u for u in clients_connected_dict.values()]}))
+        """
+        user_list = [u for u in clients_connected_dict.values()]
+        for s in clients_connected_dict:
+            try:
+                await s.send(json.dumps({"type":"user_list","users":user_list}))
+            except websockets.ConnectionClosed:
+                pass
+
+        #HANDLE MESS - pingpong
+        async for mess in socket:
+            try:
+                incoming_data = json.loads(mess)
+            except json.JSONDecodeError:
+                await socket.send(json.dumps({"type":"error","message":"Invalid JSON!"}))
+                continue
+
             
-            #await client_connection.send("Account created. Connection is ended, please connect again.")
-                #await client_connection.close() 
+            if incoming_data.get("type") == "pong":
+                last_pong[socket] = time.time()
+                continue
+
+            if incoming_data.get("type") == "post_public_key":
+                user_pub_key = incoming_data.get("key")
+                clients_p_keys[username] = user_pub_key
+                
+                #announce the new key
+                await server_mess_wrapper(f"Created public key fpr {username}")
+
+            elif incoming_data.get("type") == "message":
+                if not allowed_to_send(username):
+                    await socket.send(json.dumps({
+                        "type":"error",
+                        "message":f"Message rate exceeded ({mess_limit} per {time_range} second!!)" #rate-limiting
+                    }))
+                    continue
+
+                target_user = incoming_data.get("to")
+                content = incoming_data.get("content")
+
+                #in the mean time dont allow text to offline users
+                if target_user not in clients_connected_dict.values():
+                    await socket.send(json.dumps({
+                        "type":"error",
+                        "message":"This person actually offline :("
+                    }))
+                    continue
                     
+                users_pair = tuple(sorted([username, target_user]))
+                #[NEW] encrypt mess [mar 13]
+                aes_key = aes_session_keys.get(users_pair)
+                if aes_key:
+                    content = encrypt_aes(aes_key, content)
 
-                #entered_pass = newuser_passs
-                #pass_in_database = registered_users.get(username)
-                #return
-            else:
-                await client_connection.send("Restart login.")
-                return
+                #create new session for new pair
+                if users_pair not in active_chat_pairs:
+                    get_session(username, target_user)
+                    active_chat_pairs.add(users_pair)
 
-        elif check_pass(entered_pass, pass_in_database) == False:
-            record_failed_login(username) #mar 7: fails --> record to track fails attempts!
-            await client_connection.send("Invalid user or password!")
-            return # leave the program 
+                ##log_line = f"{time.strftime('%H:%M')} {username}: {content}"
+                log_line = f"{time.strftime('%H:%M')} {username}: [encrypted message]" #HIDE the mess in log
+                write_mess_to_log(username, target_user, log_line)
 
-        else: #this case the pass that is save in database is match is password user type in
-            if username in clients_connected_dict.values():
-                await client_connection.send("User already logged in!")
-                return
+                for client_socket, uname in clients_connected_dict.items():
+                    if uname == target_user:
+                        await client_socket.send(json.dumps({"type":"message", "from": username,"content": content,"time": time.strftime("%H:%M")
+                        }))
 
-            await client_connection.send("LOGIN SUCCESS")
+            #ping handling
+            elif incoming_data.get("type") == "ping":
+                await socket.send(json.dumps({"type":"pong"}))
 
-            #Late MAR 9:Fix E2EE issues, MAR8 code is incorrect.
-            await client_connection.send("pub_key_sending")
+            #get-user
+            elif incoming_data.get("type") == "get_users":
+                await socket.send(json.dumps({"type":"user_list", "users":[u for u in clients_connected_dict.values()]}))
 
-            p_key = await client_connection.recv()
+            # file handling
+            #elif incoming_data.get("type") == "file":
+            #    await file_forward(socket, incoming_data.get("data")) Update raw string to JSON (mar 13)
+            elif incoming_data.get("type") == "file":
+                target = incoming_data.get("to")
+                filename = incoming_data.get("filename")
+                size = incoming_data.get("size")
+                data = incoming_data.get("data")
 
-            clients_p_keys[client_connection] = p_key
+                users_pair = tuple(sorted([username, target]))
+                #encrypt file transfer [mar 13]
+                aes_key = aes_session_keys.get(users_pair)
+                if aes_key:
+                    data = encrypt_aes(aes_key, data)
 
-            # send existing users' keys to new client
-            for each_client, other_username in clients_connected_dict.items():
-                if each_client != client_connection:
-                    other_client_key = clients_p_keys.get(each_client)
+                for client_socket, uname in clients_connected_dict.items():
+                    if uname == target:
+                        await client_socket.send(json.dumps({
+                            "type":"file", "from": username, "filename": filename, 
+                            "size": size, "data": data,"time": time.strftime("%H:%M")}))
 
-                    if other_client_key is not None:
-                        # FIX: must decode or client cannot load PEM
-                        await client_connection.send(
-                            f"PUBLIC_KEY|{other_username}|{other_client_key.decode()}"
-                        )
+            # type issues
+            elif incoming_data.get("type") == "typing":
+                target_user = incoming_data.get("to")
+                for client_socket, uname in clients_connected_dict.items():
+                    if uname == target_user:
+                        await client_socket.send(json.dumps({"type":"typing", "from":username}))  
 
-            reset_login(username) #mar 7: reset fail attempts if login successful
-            print(f"{username} logged in successfully")
+            if incoming_data.get("type") == "request_key":
+                target_user = incoming_data.get("target_user")
+                target_pub = clients_p_keys.get(target_user)  # recipient public key (PEM string)
+                if target_pub:
+                    # generate AES key for this pair
+                    users_pair = tuple(sorted([username, target_user]))
+                    if users_pair not in aes_session_keys:
+                        aes_session_keys[users_pair] = os.urandom(32)  # AES-256
+                    aes_key = aes_session_keys[users_pair]
 
-       
+                    # encrypt AES key with recipient's RSA public key
+                    from cryptography.hazmat.primitives import serialization
+                    pub_key_obj = serialization.load_pem_public_key(target_pub.encode())
+                    enc_key = pub_key_obj.encrypt(
+                        aes_key,
+                        padding.OAEP(mgf=padding.MGF1(hashes.SHA256()), algorithm=hashes.SHA256(), label=None)
+                    )
+                    enc_key_b64 = base64.b64encode(enc_key).decode()
+                    await socket.send(json.dumps({"type":"key_response", "user":target_user, "key":enc_key_b64}))      
 
-            #CHAT FUCNTION
-        clients_connected_dict[client_connection] = username  #map connection to the username, track login users
-        last_pong[client_connection] = time.time()
+    except websockets.ConnectionClosed:
+        print(f"{username or 'Dont know who'} disconnected")
+    finally:
+        if socket in clients_connected_dict:
+            left_user = clients_connected_dict.pop(socket)
+            last_pong.pop(socket, None)
+            clients_p_keys.pop(username, None)
 
-        print("Number of clients connected:", len(clients_connected_dict))
-
-        #print("client connected!") 1st version, replace by system_mess
-        #await server_mess_wrapper("client joined this chat")
-        await server_mess_wrapper(f"{username} joined the chat")
-
-        #new client public key
-        for each_client in clients_connected_dict:
-            if each_client != client_connection:
-                # FIX: decode PEM before sending
-                await each_client.send(f"PUBLIC_KEY|{username}|{p_key.decode()}")
-
-        try:
-            #while True: #this loop allow users send many mess as they want but mannually, let try to use the async let websocket handle it
-            #message = await client_connection.recv() #Await: server wait mess from client while aslo can handler other tasks
-            async for message in client_connection:
-
-                if message == "PONG":
-                    last_pong[client_connection] = time.time()
-                    continue
-
-                print("received from ", username, ":", message)
-
-                write_mess_to_log(f"{username}: {message}") #add this line to track and write log
-
-                if isinstance(message, str) and message.startswith("file_metadata|"):
-                    await file_forward(client_connection, message)
-                    continue
-
-                clients_disconnected_set = set()
-
-                '''for client in clients_connected_set:
-                    if client != client_connection:
-                        try:
-                            await client.send(message)'''
-
-                sender_name = clients_connected_dict[client_connection]
-
-                if allowed_to_send(sender_name) == False:
-                    await client_connection.send("Exceed the number of message amount, please wait 8 seconds!")
-                    continue
-
-                for client in clients_connected_dict:
-                    try: 
-                        if client != client_connection:
-                            #await client.send(f"{sender_name}: {message}") MAR 9: Now have JSON package,
-                            await client.send(f"{message}")
-
-                    except websockets.ConnectionClosed:
-                        clients_disconnected_set.add(client)
-
-                for client in clients_disconnected_set:
-                    clients_connected_dict.pop(client, None)
-
-            #await client_connection.send("Message is received through TLS")
-            #await server_mess(message)
-
-        except websockets.ConnectionClosed:
-            print("client disconnected unexpected :()")
-
-        finally:
-            username = clients_connected_dict.get(client_connection, "Unknown")
-            clients_connected_dict.pop(client_connection, None)
-            clients_p_keys.pop(client_connection, None) #delete the public keys
-            print(f"{username} disconnected")
-            await server_mess_wrapper(f"{username} left the chat")
-
-    except Exception as e:
-        print("ERROR [handler]:", repr(e))
-        try:
-            await client_connection.send(f"SERVER ERROR: {e}")
-        except:
-            pass
+            for other_socket in clients_connected_dict:
+                try:
+                    await other_socket.send(json.dumps({"type":"user_left", "username":left_user}))
+                except websockets.ConnectionClosed:
+                    pass
 
 #1.main function 
 async def main():
 
     #2. create TLS context 
+    
     ssl_TLScontext = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER) 
-    ssl_TLScontext.load_cert_chain( certfile="../certificate/certificate.pem", keyfile="../certificate/privateKey.pem" ) 
+    root_path = os.path.dirname(os.path.abspath(__file__))
+    cert_abs_path = os.path.join(root_path, "../certificate/certificate.pem")
+    key_abs_path = os.path.join(root_path, "../certificate/privateKey.pem")
+
+    ssl_TLScontext.load_cert_chain(certfile=cert_abs_path, keyfile=key_abs_path)
+
+   # ssl_TLScontext.load_cert_chain( certfile="../certificate/certificate.pem", keyfile="../certificate/privateKey.pem" ) 
     ##MUST RUN from root, because the path here will be error when run in server folder
     ##Mar 6: Update the path!
 
@@ -443,8 +545,8 @@ async def main():
     #async with websockets.serve( handler,port=7777,host="0.0.0.0", ssl=ssl_TLScontext): #Mar 6, change local host to 0.0.0.0 to handle all case.
     #MAR 6B: Change to .env to hide the real IP
     async with websockets.serve(handler, host="0.0.0.0", port=int(Port_Of_Server), ssl=ssl_TLScontext):
-
-        print("Server is running ...")   # hints that sever started
+    #async with websockets.serve(handler,host="0.0.0.0", port=int(Port_Of_Server)): use IN for connect HTML and backend debugs
+        print("Server is running ...")   # DEBUG WEBSOCKET
 #4. Server alive by future()
          #await checking_heartbeat() server froze//
         asyncio.create_task(checking_heartbeat())
