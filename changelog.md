@@ -221,7 +221,7 @@ CPSC 455 - GROUP 3 - SPRING 2026
 - Users easily go offline, so it needs to be focused
 - Testing with the 3rd account
 
-# 14 MAR 2026 EVE (Released to v0.9.1)
+# 14 MAR 2026 (Released to v0.9.1)
 ## Fixed
 - Now two users can see the plaintext message
 
@@ -231,3 +231,27 @@ CPSC 455 - GROUP 3 - SPRING 2026
 ## Planned
 - Users easily go offline, so it needs to be focused
 - Testing with the 3rd account
+
+# 14 MAR 2026 EVE 
+- First time there is a client connection from the 2nd device
+
+## Planned
+- Users easily go offline, fixing
+
+# 15 MAR 2026 (Released to v1.0)
+## Tested
+- Three users text separately in pairs
+- Tested three users successfully
+- Fixed the chat textfield moving and hiding issues
+- Fix the session numbering system of the chat log
+- Rechecked the file sending and rechecked the emoji pickers, sending emojis.
+
+## Progress
+- Using Firefox multi-account to test, because Chrome and Edge do not support self-signed certificates
+
+## Planned
+- Formally edit this changelog writing styles
+- Formally add and rewrite the user guide
+- Test text formatting issues
+- Documentary
+- Plan to video record.

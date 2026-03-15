@@ -33,9 +33,22 @@ active_chat_pairs = set()
 #NUMBERED BY PAIR:
 def get_session(user1, user2):
     users_pair = tuple(sorted([user1, user2]))
+
     if users_pair not in chat_sessions:
-        chat_sessions[users_pair] = 1 
+        chat_sessions[users_pair] = 1
+    else: #debug session number issues [MAR 15]
+        chat_sessions[users_pair] = chat_sessions[users_pair] + 1
+
     return chat_sessions[users_pair]
+
+#[MAR 15: fix the numbering bug]
+def start_new_session(user1, user2):
+    users_pair = tuple( sorted([user1, user2]))
+    chat_sessions[users_pair] = chat_sessions.get(users_pair, 0) + 1
+    active_chat_pairs.discard(users_pair)
+
+    return chat_sessions[users_pair]
+
 
 #MAR 10 eve: need each chat log per session, so better chat logs are numbered
 def write_mess_to_log(user1, user2, chat_message):
@@ -245,6 +258,7 @@ def write_system_log(message):
     with open("chat_logs/system_log.txt", "a", encoding="utf-8") as sys_log_file:
         sys_log_file.write(message + "\n")
 
+"""
 async def checking_heartbeat():
     while True: #loop forever and ever
         heartbeat_timerange = 5 #wait 5 [seconds]
@@ -275,6 +289,37 @@ async def checking_heartbeat():
             last_pong.pop(each_client, None)
             clients_p_keys.pop(username, None) #remove pub key, also!
             await server_mess_wrapper(f"{username} disconnected, not listen to server!") #the verdict of server to the all system
+"""
+
+heartbeat_failures = {}
+
+async def check_heartbeat():
+    while True:
+        await asyncio.sleep(12)
+        to_remove = []
+
+        for ws in list(clients_connected_dict):
+            try:
+                await ws.send(json.dumps({"type": "ping"}))
+                heartbeat_failures[ws] = 0  
+            except:
+                heartbeat_failures[ws] = heartbeat_failures.get(ws, 0) + 1
+                if heartbeat_failures[ws] >= 3:  #remove after 3 failures continuously
+                    to_remove.append(ws)
+
+        for ws in to_remove:
+            username = clients_connected_dict.get(ws, "John Doe")
+            clients_connected_dict.pop(ws, None)
+            last_pong.pop(ws, None)
+            clients_p_keys.pop(username, None)
+            heartbeat_failures.pop(ws, None)
+
+            active_chat_pairs_copy = set(active_chat_pairs)
+            for pair in active_chat_pairs_copy:
+                if username in pair:
+                    active_chat_pairs.remove(pair)
+
+            await server_mess_wrapper(f"{username} disconnected, not listen to server's heartbeat check process!")
 
 async def file_forward(client_connectionCtS, message):
     #actually to get user name of the sender
@@ -435,6 +480,12 @@ async def handler(socket):
                 user_pub_key = incoming_data.get("key")
                 clients_p_keys[username] = user_pub_key
                 
+                try:
+                    serialization.load_pem_public_key(user_pub_key.encode())
+                    clients_p_keys[username] = user_pub_key
+                except Exception:
+                    print(f"Invalid public key from {username}")
+
                 #announce the new key
                 await server_mess_wrapper(f"Created public key fpr {username}")
 
@@ -465,9 +516,14 @@ async def handler(socket):
                 content = incoming_data.get("content")
 
                 #create new session for new pair
+                #if users_pair not in active_chat_pairs:
+                 #   get_session(username, target_user)
+                  #  active_chat_pairs.add(users_pair)
+
+                #check if that pair need new session number
                 if users_pair not in active_chat_pairs:
-                    get_session(username, target_user)
-                    active_chat_pairs.add(users_pair)
+                    session = start_new_session(username, target_user)
+                    print(f"New chat session {session} created for {users_pair}")
 
                 ##log_line = f"{time.strftime('%H:%M')} {username}: {content}"
                 log_line = f"{time.strftime('%H:%M')} {username}: [encrypted message]" #HIDE the mess in log
@@ -532,16 +588,25 @@ async def handler(socket):
                         padding.OAEP(mgf=padding.MGF1(hashes.SHA256()), algorithm=hashes.SHA256(), label=None)
                     )
                     enc_key_b64 = base64.b64encode(enc_key).decode()
-                    #await socket.send(json.dumps({"type":"key_response", "user":target_user, "key":enc_key_b64}))   
-                    for client_socket, uname in clients_connected_dict.items():
-                        if uname == target_user:
-                            await client_socket.send(json.dumps({"type":"key_response", "user": username,"key": enc_key_b64  }))   
+                    await socket.send(json.dumps({"type":"key_response", "user":target_user, "key":enc_key_b64}))   
+                    #for client_socket, uname in clients_connected_dict.items():
+                     #   if uname == target_user:
+                      #      await client_socket.send(json.dumps({"type":"key_response", "user": username,"key": enc_key_b64  }))   
 
     except websockets.ConnectionClosed:
         print(f"{username or 'Dont know who'} disconnected")
     finally:
         if socket in clients_connected_dict:
             left_user = clients_connected_dict.pop(socket)
+            #remove active chat pairs of this user
+            pairs_to_remove = []
+            for pair in active_chat_pairs:
+                if left_user in pair:
+                    pairs_to_remove.append(pair)
+
+            for pair in pairs_to_remove:
+                active_chat_pairs.remove(pair)
+
             last_pong.pop(socket, None)
             clients_p_keys.pop(username, None)
 
@@ -576,7 +641,7 @@ async def main():
         print("Server is running ...")   # DEBUG WEBSOCKET
 #4. Server alive by future()
          #await checking_heartbeat() server froze//
-        asyncio.create_task(checking_heartbeat())
+        asyncio.create_task(check_heartbeat())
 
         await asyncio.Future() #keep server running, freeze server, no code after this line!!!!
 
