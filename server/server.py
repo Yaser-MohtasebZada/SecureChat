@@ -7,6 +7,7 @@ import time #From MAR 9, even use for chat_logs!
 
 # NEW PART 1: SAN + hidden server IP (Mar 6)
 import os
+import glob #to fix the numbering session error after TURN OFF Server [MAR 15 EVE]
 
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import hashes
@@ -41,14 +42,38 @@ def get_session(user1, user2):
 
     return chat_sessions[users_pair]
 
+#MAR 15 EVE: Get session number from last time and keep counting on, etc.
+def get_current_sessionNo(user1, user2):
+    users_pair = tuple(sorted([user1, user2]))
+    pattern = f"chat_logs/{users_pair[0]}_{users_pair[1]}_session*.txt"
+
+    all_session_file = glob.glob(pattern)
+
+    if not all_session_file:
+        chat_sessions[users_pair] = 1
+        return 1
+
+    #get the lastest (biggest) session No
+    session_No_list = []
+    for file_name in all_session_file:
+        current_No = int(file_name.split("session")[1].split(".txt")[0])
+        session_No_list.append(current_No)
+
+    last_session = max(session_No_list)
+    chat_sessions[users_pair] = last_session
+    return last_session
+
 #[MAR 15: fix the numbering bug]
 def start_new_session(user1, user2):
     users_pair = tuple( sorted([user1, user2]))
+
+    if users_pair not in chat_sessions:
+        get_current_sessionNo(user1, user2)
+
     chat_sessions[users_pair] = chat_sessions.get(users_pair, 0) + 1
-    active_chat_pairs.discard(users_pair)
+    #active_chat_pairs.discard(users_pair)
 
     return chat_sessions[users_pair]
-
 
 #MAR 10 eve: need each chat log per session, so better chat logs are numbered
 def write_mess_to_log(user1, user2, chat_message):
@@ -523,6 +548,7 @@ async def handler(socket):
                 #check if that pair need new session number
                 if users_pair not in active_chat_pairs:
                     session = start_new_session(username, target_user)
+                    active_chat_pairs.add(users_pair)
                     print(f"New chat session {session} created for {users_pair}")
 
                 ##log_line = f"{time.strftime('%H:%M')} {username}: {content}"

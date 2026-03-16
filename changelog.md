@@ -238,7 +238,7 @@ CPSC 455 - GROUP 3 - SPRING 2026
 ## Planned
 - Users easily go offline, fixing
 
-# 15 MAR 2026 (Released to v1.0)
+# 15 MAR 2026 (Released to v0.9.2)
 ## Tested
 - Three users text separately in pairs
 - Tested three users successfully
@@ -255,3 +255,19 @@ CPSC 455 - GROUP 3 - SPRING 2026
 - Test text formatting issues
 - Documentary
 - Plan to video record.
+
+# 15 MAR 2026 EVE (Released to v0.9.3)
+## Add
+- Fixed new session numbering issues (track number after server is disconnected)
+- Clickable link in the chat
+- Remove and add some emojis.
+
+## Progress
+- Tested text formatting issues
+- Download the needed Firefox on the 2nd device to test clients on a different device with the server. 
+- Tested 3 clients on different device from the server as required.
+
+## Planned
+- Double-check for minor bugs and issues before release v1.0
+- Formally edit this changelog writing styles, add, and rewrite the user guide
+- Documentary, plan to video record.

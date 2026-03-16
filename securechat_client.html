@@ -279,9 +279,10 @@ let msgTimestamps=[], reconnTimer=null, heartbeatTimer=null;
 let typingTimeout=null, pendingAuth=null;
 const RATE_LIMIT=5, RATE_WINDOW=8000;
 
-const EMOJIS=['😀','😂','😍','🥰','😎','🤔','😢','😡','🔥','💯','👍','👎',
-  '🎉','✅','❌','❓','⚠️','🔒','💬','🚀','⭐','💡','📎','📁','🌐','💻',
-  '🤝','👋','💪','🙌','🫡','😴','🤯','🥹','😤','🙄','😇','🤗','🤫','🤭'];
+const EMOJIS=['😀','😂','😆','🥰','😎','🤔','😢', '🧐', //add the :monocle: lol
+  '❤️','💔','🔥','💯','👍','👎',
+  '🎉','✅','❌','❓','⚠️','🔒', '🚀','⭐','💡','🌐','💻',
+  '🐐','👋','💪','🙌','😴','🤯','😤','🙄','😇','🤗']; //add and remove some emojis, lol
 
 // ── BUILD EMOJI PANEL ─
 (function(){
@@ -726,9 +727,14 @@ function appendSystemMsg(text){
 
 // ── TEXT FORMATTING ────────────────────────────────────────────────────────────
 function fmtText(t){
-  t=t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  t=t.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
-  t=t.replace(/_(.+?)_/g,'<em>$1</em>');
+  t = t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); 
+  t = t.replace(/((https?:\/\/|www\.)[^\s]+)/g, url => {
+    if (!url.startsWith("http")) url = "https://" + url;
+    return `<a href="${url}" target="_blank" style="color:var(--accent)">${url}</a>`; //I love the link to be GREEN, lol
+});
+  //t=t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  t=t.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>'); //bold
+  t=t.replace(/_(.+?)_/g,'<em>$1</em>'); //italic
   t=t.replace(/`(.+?)`/g,'<code style="background:var(--border);padding:1px 5px;border-radius:4px;font-family:var(--mono);font-size:12px">$1</code>');
   t=t.replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,'<a href="$2" target="_blank" style="color:var(--accent2)">$1</a>');
   return t;
