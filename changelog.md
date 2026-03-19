@@ -265,9 +265,22 @@ CPSC 455 - GROUP 3 - SPRING 2026
 ## Progress
 - Tested text formatting issues
 - Download the needed Firefox on the 2nd device to test clients on a different device with the server. 
-- Tested 3 clients on different device from the server as required.
+- Tested 3 clients on different devices from the server as required.
 
 ## Planned
 - Double-check for minor bugs and issues before release v1.0
 - Formally edit this changelog writing styles, add, and rewrite the user guide
 - Documentary, plan to video record.
+
+# 17 MAR 2026
+## Progress
+- Tested on campus and made sure the server is working, noted that clients are on different machines with the server.
+
+# 19 MAR 2026 (Released to v1.0)
+## Add
+- Notes for presentation.
+- Updated new user guide (readme). Noted that members of the group decided to remove the file structure of the project to avoid fingerprinting attacks.
+- Updated the changelog
+
+## Progress
+- Tested the 2nd time to make sure all features worked.

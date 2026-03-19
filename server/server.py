@@ -18,6 +18,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM #MAR 14: To updat
 
 mess_limit = 5 # messages
 time_range = 8 # seconds
+
 aes_session_keys = {}
 """
 #MAR 9: CHAT LOGS
@@ -33,23 +34,26 @@ chat_sessions = {} # MAR 10 eve: needed for the new chatfile system
 active_chat_pairs = set()
 #NUMBERED BY PAIR:
 def get_session(user1, user2):
-    users_pair = tuple(sorted([user1, user2]))
+    users_pair = tuple(sorted([user1, user2])) 
+    #ensure that test24-test25 the same as test25-test24 (counting in pair, not which party started the conversation)
 
     if users_pair not in chat_sessions:
-        chat_sessions[users_pair] = 1
+        chat_sessions[users_pair] = 1 #1ST TIME
     else: #debug session number issues [MAR 15]
-        chat_sessions[users_pair] = chat_sessions[users_pair] + 1
+        chat_sessions[users_pair] = chat_sessions[users_pair] + 1 #2nd, 3rd, ... time, increased session number by one
 
     return chat_sessions[users_pair]
 
 #MAR 15 EVE: Get session number from last time and keep counting on, etc.
-def get_current_sessionNo(user1, user2):
+#this one to handle a serious and persistent issues, after turn off server, the session number reset from 1 again
+def get_current_sessionNo(user1, user2): 
     users_pair = tuple(sorted([user1, user2]))
-    pattern = f"chat_logs/{users_pair[0]}_{users_pair[1]}_session*.txt"
+    pattern = f"chat_logs/{users_pair[0]}_{users_pair[1]}_session*.txt" 
+    #Have to look at the pattern of logchat to find the lastest (biggest session's number)
 
     all_session_file = glob.glob(pattern)
 
-    if not all_session_file:
+    if not all_session_file: #if dont see it, ther assigned session "1" to this pair
         chat_sessions[users_pair] = 1
         return 1
 
@@ -68,7 +72,7 @@ def start_new_session(user1, user2):
     users_pair = tuple( sorted([user1, user2]))
 
     if users_pair not in chat_sessions:
-        get_current_sessionNo(user1, user2)
+        get_current_sessionNo(user1, user2) #called this one to ensure no reset session to 1, no overlapping session number, no randomly append
 
     chat_sessions[users_pair] = chat_sessions.get(users_pair, 0) + 1
     #active_chat_pairs.discard(users_pair)
@@ -76,6 +80,7 @@ def start_new_session(user1, user2):
     return chat_sessions[users_pair]
 
 #MAR 10 eve: need each chat log per session, so better chat logs are numbered
+#this function is the same as it name, add new message to the log_chat, "append" it to the end of the files
 def write_mess_to_log(user1, user2, chat_message):
 
     users_pair = tuple(sorted([user1, user2]))
@@ -90,6 +95,7 @@ def write_mess_to_log(user1, user2, chat_message):
 
 #MAR 12: NEW DECRYPT-ENCRYPT:
 """
+//This one is cancelled because CFB mode encryption is horrible.
 def encrypt_aes(key, plaintext):
     IV = os.urandom(16)
     cipher = Cipher(algorithms.AES(key), modes.CFB(IV))
@@ -106,9 +112,9 @@ def decrypt_aes(key, ciphertext_b64):
 """
 #MAR 14: Update to AES-GCM
 def encrypt_aes(encryption_key, plain_text):
-    iv = os.urandom(12)
+    iv = os.urandom(12) #with random initial vector 12 bytes
 
-    aesgcm = AESGCM(encryption_key)
+    aesgcm = AESGCM(encryption_key) #decided to use AES_GCM after removed CFB mode encryption above.
     crypted_Text = aesgcm.encrypt(iv, plain_text.encode(), None)
 
     return base64.b64encode(iv + crypted_Text).decode()
@@ -119,7 +125,7 @@ def decrypt_aes(decryption_key, crypted_text_base64):
     iv = encrypted_blob[:12]
     crypted_Text = encrypted_blob[12:]
 
-    aesgcm = AESGCM(decryption_key)
+    aesgcm = AESGCM(decryption_key) #decrypt using the same encryption method
     decrypted_message = aesgcm.decrypt(iv, crypted_Text, None)
 
     return decrypted_message.decode()
