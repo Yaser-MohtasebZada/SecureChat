@@ -33,6 +33,7 @@ chat_sessions = {} # MAR 10 eve: needed for the new chatfile system
 #current_sessionNo = 1  #initialized as session 1, then 2,3,4 etc SINCE MAR 12, not needed anymore because numbered by pairs
 active_chat_pairs = set()
 #NUMBERED BY PAIR:
+"""
 def get_session(user1, user2):
     users_pair = tuple(sorted([user1, user2])) 
     #ensure that test24-test25 the same as test25-test24 (counting in pair, not which party started the conversation)
@@ -43,7 +44,7 @@ def get_session(user1, user2):
         chat_sessions[users_pair] = chat_sessions[users_pair] + 1 #2nd, 3rd, ... time, increased session number by one
 
     return chat_sessions[users_pair]
-
+"""
 #MAR 15 EVE: Get session number from last time and keep counting on, etc.
 #this one to handle a serious and persistent issues, after turn off server, the session number reset from 1 again
 def get_current_sessionNo(user1, user2): 
