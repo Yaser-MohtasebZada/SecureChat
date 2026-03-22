@@ -37,14 +37,6 @@ cd SecureChat
 pip install -r requirements.txt
 ```
 
-### Set up environment variables
-Create a file named `.env` in the root folder of the project with the following:
-```
-Server_IP=your_server_ip_here
-Server_Port=7777
-```
-Replace `your_server_ip_here` with the actual IP address of the machine running the server.
-
 ## Step-by-step to running the server
 1. In your downloaded folder, run `python server/server.py`
 2. Open `securechat_client.html` in **Firefox** to load the GUI
