@@ -284,3 +284,26 @@ CPSC 455 - GROUP 3 - SPRING 2026
 
 ## Progress
 - Tested the 2nd time to make sure all features worked.
+
+# 25-26 APR 
+## Progress
+- Conver old style Python server to the new Node server
+- Testing.
+
+# 27 APR 2026 EVE
+- Branched to Phase 3 branch
+- Testing some cloud preparation for switching up.
+- Download Node LTS on the server machine.
+
+## Planned
+- Convert HTML file
+- Upload first updated version.
+
+# 28 APR 2026 MOR
+## Progress
+- Fix many bugs on new server.js
+- Download glob
+- Push main code to Github
+
+## Planned
+- Render employement
