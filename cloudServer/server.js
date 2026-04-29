@@ -8,10 +8,6 @@ const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const glob = require("glob"); // MAR 15 EVE: To fix the numbering session error after TURN OFF Server
 
-//Render port - APR 28 MOR
-//const PORT = process.env.Port_Of_Server || 7777; delete APR 28
-const PORT = process.env.PORT || 7777; //move to render
-
 let registered_users = {};
 let clients_connected_dict = {}; // store name of client
 let clients_p_keys = {};
@@ -173,7 +169,10 @@ const http = require("http");
 const server = http.createServer();
 const wss = new WebSocket.Server({ server });
 
-server.listen(PORT, () => {
+//Render port - APR 28 MOR
+//const PORT = process.env.Port_Of_Server || 7777; delete APR 28
+const PORT = process.env.PORT || 7777; //move to render
+server.listen(PORT, "0.0.0.0", () => { //forgot to add 0.0.0.0 to actual deploy, add APR 28 EVE
     console.log("Server running on port " + PORT);
 });
 
