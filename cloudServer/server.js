@@ -1,6 +1,5 @@
 // SecureChat Node Ver
 // APR 26: Porting from Python. Python time is not supported, so new time functions created.
-
 const WebSocket = require("ws");
 const fs = require("fs");
 const path = require("path");
@@ -159,30 +158,43 @@ function save_users() {
     fs.writeFileSync("users.json", JSON.stringify(registered_users, null, 2));
 }
 
-registered_users = load_users();
+//registered_users = load_users(); move to server.listen //trying to fix render loading error APR 28 EVE
 
 //SERVER
 //const wss = new WebSocket.Server({ port: PORT }); no more reliable for the server to work well with Render, REMOVE APR 28 MOR
 //console.log("Server is running on port", PORT);
 const http = require("http");
 
-const server = http.createServer();
-const wss = new WebSocket.Server({ server });
 
 //Render port - APR 28 MOR
 //const PORT = process.env.Port_Of_Server || 7777; delete APR 28
-const PORT = process.env.PORT || 7777; //move to render
-server.listen(PORT, "0.0.0.0", () => { //forgot to add 0.0.0.0 to actual deploy, add APR 28 EVE
+const PORT = process.env.PORT || 7777;//move to render
+
+const server = http.createServer((req, res) => {
+    res.writeHead(200, { "Content-Type": "text/plain" });
+    res.end("SecureChat backend running");
+});
+
+//add to ensure about chat log filder pontentual issue,
+
+if (!fs.existsSync("chat_logs")) {
+    fs.mkdirSync("chat_logs");
+}
+
+const wss = new WebSocket.Server({ server });
+
+//server.listen(PORT, "0.0.0.0", () => {//forgot to add 0.0.0.0 to actual deploy, add APR 28 EVE
+server.listen(PORT, () => { //remove to test RENDER again
+    registered_users = load_users();
     console.log("Server running on port " + PORT);
 });
 
-
 //HEARTBEAT
 setInterval(() => {
-    Object.keys(clients_connected_dict).forEach(ws => {
-        try {
+    wss.clients.forEach(ws => {
+        if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: "ping" }));
-        } catch {}
+        }
     });
 }, 12000);
 
