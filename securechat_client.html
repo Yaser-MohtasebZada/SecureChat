@@ -191,8 +191,10 @@
     <label>Server Address (wss://)</label>
     <!--<input class="inp" id="server-addr" value="wss://localhost:8765" style="font-family:var(--mono);font-size:12px"/>-->
     <!--Hide real Server IP before upload to Git, MAR 13-->
-    <input class="inp" id="server-addr" value="wss://xxx.yyy.zzz.aaa:7777" style="font-family:var(--mono);font-size:12px"/>
+    <!--<input class="inp" id="server-addr" value="wss://xxx.yyy.zzz.aaa:7777" style="font-family:var(--mono);font-size:12px"/> REMOVE APR 30 MOR for the real URL-->
 
+    <input class="inp" id="server-addr" value="wss://securechat-fp59.onrender.com" readonly style="font-family:var(--mono);font-size:12px"/> <!--New and official URL-->
+    <!--add Readonly parameter to make sure client cannot alter the URL anymore, APR 30 MOR-->
     <label>Username</label>
     <input class="inp" id="auth-user" placeholder="Enter username" autocomplete="username"/>
     <label>Password</label>
@@ -267,6 +269,8 @@
 <input type="file" id="file-input" style="display:none" onchange="handleFileSelect(event)"/>
 
 <script>
+  const debug_flag = false; //Debug flag, ensure not let user know about error.
+
 //add in MAR 13 to handle encryption
 let RSA_Key_Pair = null;        // users RSA keys
 let chat_AES_Keys = {};         // AES key of each chat user
@@ -345,7 +349,7 @@ function connectWS(serverURL, username, passwd, connection_Type) {
         pendingAuth = { resolve, reject };
 
         ws.onopen = async () => {
-            console.log('Connected to server.');
+            console.log('CONNECTED to server!');
             
             // Send auth/register immediately
             ws.send(JSON.stringify({
@@ -359,8 +363,10 @@ function connectWS(serverURL, username, passwd, connection_Type) {
             handleMsg(event.data);
         };
 
-        ws.onclose = () => {
+        ws.onclose = (event) => {
             setConn('disconnected');
+            if(debug_flag ==true)
+              console.log("DISCONNECTED", event); //Add for debugging apr 30
             clearInterval(heartbeatTimer);
             if (pendingAuth) {
                 pendingAuth.reject(new Error('Server closed connection.'));
@@ -371,9 +377,12 @@ function connectWS(serverURL, username, passwd, connection_Type) {
             }
         };
 
-        ws.onerror = () => {
+        ws.onerror = (event) => {
             if (pendingAuth) {
-                pendingAuth.reject(new Error('Cannot reach server. Check address and make sure server is running.'));
+                if(debug_flag ==true)
+                  console.log("WS ERROR", event); //Add for debugging apr 30
+                //pendingAuth.reject(new Error('Cannot reach server. Check address and make sure server is running.'));
+                pendingAuth.reject(new Error('Cannot reach server.')); //from APR 28, there is no hand-typed IP, so make the announcement shorter
                 pendingAuth = null;
             }
         };

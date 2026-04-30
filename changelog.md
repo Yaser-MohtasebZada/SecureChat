@@ -307,3 +307,24 @@ CPSC 455 - GROUP 3 - SPRING 2026
 
 ## Planned
 - Render employement
+
+# 28 APR 2026 EVE
+## Progress
+- Render registration
+- Got the URL: https://securechat-fp59.onrender.com/
+- Fix bugs when upload to Render.
+
+## Planned
+- Upload frontend to Infinity Free
+- Connect Render and Infinity Free
+
+# 30 APR 2026 MOR
+## Progress
+- Infinity Free registration
+- Got the URL: securechat.infinityfree.me
+- Connect between Infinity and Render successfully,
+- Fail in authentication.
+
+## Planned
+- Upload frontend to Infinity Free
+- Connect Render and Infinity Free

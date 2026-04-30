@@ -8,7 +8,9 @@ const crypto = require("crypto");
 const glob = require("glob"); // MAR 15 EVE: To fix the numbering session error after TURN OFF Server
 
 let registered_users = {};
-let clients_connected_dict = {}; // store name of client
+//let clients_connected_dict = {}; // store name of client REMOVE APR 30 MOR
+let clients_connected_dict = new Map(); //test MAP for more stable access and connections
+
 let clients_p_keys = {};
 let last_pong = {}; // tracking last pong message
 let active_chat_pairs = new Set();
@@ -146,10 +148,23 @@ function record_failed_login(username) {
 }
 
 //USER STORAGE
+/*
 function load_users() {
     try {
-        return JSON.parse(fs.readFileSync("users.json", "utf8"));
+        //return JSON.parse(fs.readFileSync("users.json", "utf8"));
+        
     } catch {
+        return {};
+    }
+}*/
+
+function load_users() {
+    try {
+        if (!fs.existsSync("users.json")) 
+            return {};
+        return JSON.parse(fs.readFileSync("users.json", "utf8"));
+    } catch (err) {
+        console.log("User loading error:", err);
         return {};
     }
 }
@@ -187,6 +202,8 @@ const wss = new WebSocket.Server({ server });
 server.listen(PORT, () => { //remove to test RENDER again
     registered_users = load_users();
     console.log("Server running on port " + PORT);
+    //only use for debug: 
+    console.log("Loaded users:", Object.keys(registered_users));
 });
 
 //HEARTBEAT
@@ -213,13 +230,18 @@ wss.on("connection", (ws) => {
         if (type === "auth") {
             username = data.username.toLowerCase();
             const pass = data.password;
+            
+            //for debug purpose
+            console.log("login attempt:", username);
+            console.log("user exists:", !! registered_users[username]);
 
             if (!registered_users[username] || !check_pass(pass, registered_users[username])) {
                 ws.send(JSON.stringify({ type: "auth_fail" }));
                 return;
             }
 
-            clients_connected_dict[ws] = username;
+            //clients_connected_dict[ws] = username;
+            clients_connected_dict.set(ws, username); //with the new structure, apr30 MOR
             ws.send(JSON.stringify({ type: "auth_success" }));
 
             // notify everyone
@@ -249,13 +271,19 @@ wss.on("connection", (ws) => {
             registered_users[username] = hash_pass(pass);
             save_users();
 
+            //add for debug purpose, apr 30
+            console.log("registered user:", username);
+            console.log("total user:", Object.keys(registered_users));
+
+
             ws.send(JSON.stringify({ type: "register_success" }));
             return;
         }
 
         // GET USERS
         if (type === "get_users") {
-            const list = Object.values(clients_connected_dict);
+            //const list = Object.values(clients_connected_dict);
+            const list = Array.from(clients_connected_dict.values());//new structure, apr 30
             ws.send(JSON.stringify({ type: "user_list", users: list }));
             return;
         }
@@ -288,7 +316,8 @@ wss.on("connection", (ws) => {
             const target = data.to;
 
             wss.clients.forEach(c => {
-                if (clients_connected_dict[c] === target) {
+                //if (clients_connected_dict[c] === target) {
+                if (clients_connected_dict.get(c) === target){//new structure apr 30
                     c.send(JSON.stringify({
                         type: "message",
                         from: username,
@@ -307,7 +336,8 @@ wss.on("connection", (ws) => {
             const target = data.to;
 
             wss.clients.forEach(c => {
-                if (clients_connected_dict[c] === target) {
+                //if (clients_connected_dict[c] === target) {
+                if (clients_connected_dict.get(c) === target){
                     c.send(JSON.stringify({
                         type: "file",
                         from: username,
@@ -325,7 +355,8 @@ wss.on("connection", (ws) => {
             const target = data.to;
 
             wss.clients.forEach(c => {
-                if (clients_connected_dict[c] === target) {
+                //if (clients_connected_dict[c] === target) {
+                if (clients_connected_dict.get(c) === target){
                     c.send(JSON.stringify({
                         type: "typing",
                         from: username
@@ -340,8 +371,12 @@ wss.on("connection", (ws) => {
     });
 
     ws.on("close", () => {
-        const user = clients_connected_dict[ws];
-        delete clients_connected_dict[ws];
+        //remove and add new structure apr30
+        //const user = clients_connected_dict[ws];
+        //delete clients_connected_dict[ws];
+
+        const user = clients_connected_dict.get(ws);
+        clients_connected_dict.delete(ws);
 
         wss.clients.forEach(c => {
             if (c.readyState === WebSocket.OPEN) {
