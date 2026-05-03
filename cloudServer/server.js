@@ -320,6 +320,19 @@ app.get("/file/:name", async (req, res) => {
   res.json({ url });
 });
 
+
+//debug and submission proof, MAY 2 EVE
+app.get("/", (req, res) => {
+    res.send("SecureChat backend is RUNNING!!!");
+});
+
+app.get("/healthy", (req, res) => {
+    res.json({
+        status: "ok",
+        time: new Date().toISOString()
+    });
+});
+
 //add to ensure about chat log filder pontentual issue,
 
 if (!fs.existsSync("chat_logs")) {
