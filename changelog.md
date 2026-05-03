@@ -328,3 +328,38 @@ CPSC 455 - GROUP 3 - SPRING 2026
 ## Planned
 - Upload frontend to Infinity Free
 - Connect Render and Infinity Free
+
+# 30 APR 2026 EVE
+## Progress
+- Creta MySQL on Infintiy Free
+- Fixing bugs
+- Now the user database is no longer local storage
+
+# 1 MAY 2026 MOR
+## Progress
+- Fixing bugs, clean up and prepared for server.js to be compatible with client.html
+- Restored missing features when move from .py to .node
+
+## Planned
+- Clean up amd make sure client.html is compatible with server.js
+- Check the connections between users on different network setting (Monday testing)
+
+# 1 MAY 2026 EVE
+## Progress
+- Fix and update rate limiting system, ping system
+- Fixed bugs of E2EE.
+
+## Planned
+- Database stored on Firebase.
+
+# 2 MAY 2026 MOR
+## Progress
+- Elimiated Firebase due to free-tier not included storage option
+- Test Backblaze 
+- Backblaze setting,
+- Reivse new file uploading on BackblazwE
+
+## Planned
+- Clean up amd make sure client.html is compatible with server.js
+- Check the connections between users on different network setting (Monday testing)
+

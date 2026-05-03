@@ -5,6 +5,7 @@ node_modules/
 __pycache__/
 *.crt
 .env
+*.env
 *.csr
 *.cnf
 users.json

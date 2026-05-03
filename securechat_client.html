@@ -275,6 +275,8 @@
 let RSA_Key_Pair = null;        // users RSA keys
 let chat_AES_Keys = {};         // AES key of each chat user
 let my_Username = null;
+let pendingMessages = {}; //prevent mess loss when AES key not ready, MAY 1 EVE
+let trustedFingerprints = {}; //for fingerint veridication, MAY 1 EVE
 
 // ── STATE ────────
 let ws=null, myUsername='', currentChat=null, authMode='login';
@@ -282,6 +284,7 @@ let chatHistories={}, onlineUsers=new Set(), unreadCounts={};
 let msgTimestamps=[], reconnTimer=null, heartbeatTimer=null;
 let typingTimeout=null, pendingAuth=null;
 const RATE_LIMIT=5, RATE_WINDOW=8000;
+let sessionToken = null; //session token MATCH with backend
 
 const EMOJIS=['😀','😂','😆','🥰','😎','🤔','😢', '🧐', //add the :monocle: lol
   '❤️','💔','🔥','💯','👍','👎',
@@ -411,19 +414,31 @@ function refreshOnlineUsers(){
         ws.send(JSON.stringify({type:'get_users'}));
     }
 }
-setInterval(refreshOnlineUsers, 22000);//call every 22 secs
+//setInterval(refreshOnlineUsers, 16000);//removeD, MAY 1
 
 function startHeartbeat(){
   clearInterval(heartbeatTimer);
   heartbeatTimer = setInterval(() => { 
     if(ws && ws.readyState===1){
-        ws.send(JSON.stringify({type:'ping'}));
-        ws.send(JSON.stringify({type:'get_users'})); // refresh online users
+        //ws.send(JSON.stringify({type:'ping'})); //remove the ping, MAY 2 MOR
+        ws.send(JSON.stringify({type:'get_users'})); //refresh online users
     }
   }, 25000);
 }
 
 // ── MESSAGE HANDLER ─────────
+//new fucntion to control the most messgsage stored per chat 
+const MAX_HISTORY = 160; //max 160 mess per chat
+function addToHistory(chatUser, mess) {
+  if (!chatHistories[chatUser]) chatHistories[chatUser] = [];
+  
+  chatHistories[chatUser].push(mess);
+
+  if (chatHistories[chatUser].length > MAX_HISTORY) {
+    chatHistories[chatUser].shift();
+  }
+}
+
 async function handleMsg(raw){ //async to use "await" [mar13]
   let d;
   try{d=JSON.parse(raw);}catch(e){return;}
@@ -432,7 +447,8 @@ async function handleMsg(raw){ //async to use "await" [mar13]
 
     setConn('connected');
     startHeartbeat();
-
+    sessionToken = d.token;
+    
     if(!RSA_Key_Pair){
         await create_Key_Pair();
     }
@@ -454,7 +470,7 @@ async function handleMsg(raw){ //async to use "await" [mar13]
     else showToast(msg,'error');
     return;
   }
-  if(d.type==='pong') return;
+  //if(d.type==='pong') return; no need anymore, MAY 2 MOR since last night update with .isAlive
 
   if(d.type==='user_list'){
     onlineUsers=new Set(d.users.filter(u=>u!==myUsername));
@@ -468,6 +484,10 @@ async function handleMsg(raw){ //async to use "await" [mar13]
     onlineUsers.delete(d.username); renderUserList();
     pushSystem(d.username,`${d.username} left the chat`); return;
   }
+  if(d.type === 'server_error'){ //added MAY 1 MOR
+  showToast(d.message || 'Server error', 'error');
+  return;
+  }
   if(d.type==='system'){
     // broadcast system message — figure out which chat
     Object.keys(chatHistories).forEach(u=>pushSystem(u,d.content));
@@ -480,14 +500,25 @@ async function handleMsg(raw){ //async to use "await" [mar13]
     let decrypted_Text = d.content;
     let decryption_Key = chat_AES_Keys[senderId];
 
-    if(decryption_Key){
+  
+    //removed this para to get got try catch
+    /*if(decryption_Key){
         decrypted_Text = await decrypt_AES(decryption_Key, decrypted_Text);
+    }*/
+
+    if (decryption_Key) {
+      try {
+        decrypted_Text = await decrypt_AES(decryption_Key, decrypted_Text);
+      } catch (err) {
+        console.warn("Decryption process failed:", err);
+        decrypted_Text = "!!!Message cannot be decrypted :(!!!";
+      }
     }
 
     if(!chatHistories[senderId]) chatHistories[senderId] = [];
     //chatHistories[from].push({kind:'text', from, content:d.content, time:d.time||nowHM()});
-    chatHistories[senderId].push({
-      kind:'text', from:senderId, content:decrypted_Text, time:d.time||nowHM()});
+    //chatHistories[senderId].push({ using new helper function, MAY 1 EVE
+    addToHistory(senderId, {kind:'text', from:senderId, content:decrypted_Text, time:d.time||nowHM()});
 
     if(currentChat === senderId){ 
       //appendMsg(from, d.content, false, d.time||nowHM()); 
@@ -529,11 +560,8 @@ async function handleMsg(raw){ //async to use "await" [mar13]
       }
 
       if(!chatHistories[senderId]) chatHistories[senderId] = [];
-      chatHistories[senderId].push({
-          kind:'file', senderId, filename:d.filename,
-          size:d.size, secret_message: decrypted_Data, time:d.time||nowHM()
-      });
-
+      //chatHistories[senderId].push({
+       addToHistory(senderId, {kind: 'file', from: senderId,  filename: d.filename,  size: d.size,  data: decrypted_Data,  time: d.time || nowHM()});
       if(currentChat === senderId){
           appendFileReceived(senderId, d.filename, d.size, decrypted_Data, d.time||nowHM());
           scrollBottom();
@@ -552,13 +580,28 @@ async function handleMsg(raw){ //async to use "await" [mar13]
     return;
   }
   if(d.type === 'rate_limit'){
-    document.getElementById('rate-warn').textContent='⚠ Rate limit reached! Wait a moment.';
+    const mess = d.message || 'Reached rate limit. Now, wait -_-'; //tiny fix the structure of the mess
+    document.getElementById('rate-warn').textContent = mess;
     setTimeout(()=>{document.getElementById('rate-warn').textContent='';},3000); 
     return;
   }
 
   if(d.type === "key_response"){
+    const fingerprint = d.fingerprint
+      if (!fingerprint) {
+      console.warn("Sever's fingerprint IS MISSING :(");
+      return;
+    }
     const encrypted_Key = Uint8Array.from(atob(d.key),c=>c.charCodeAt(0));
+    //security check, MAY 1 EVE
+    ;
+    if (trustedFingerprints[d.user] && trustedFingerprints[d.user] !== fingerprint) {
+    showToast("Key fingerprint mismatch!", "error");
+    return;
+    }
+
+    trustedFingerprints[d.user] = fingerprint;
+
     const raw_Key = await crypto.subtle.decrypt( {name:"RSA-OAEP"}, RSA_Key_Pair.privateKey, encrypted_Key);
 
     chat_AES_Keys[d.user] = await crypto.subtle.importKey(
@@ -568,9 +611,37 @@ async function handleMsg(raw){ //async to use "await" [mar13]
         ["encrypt","decrypt"]
     );
 
+    //flush queued messages
+    if (pendingMessages[d.user] && pendingMessages[d.user].length > 0) {
+        for (const mess of pendingMessages[d.user]) {
+            document.getElementById('msg-input').value = mess;
+            await sendMessage();
+        }
+        pendingMessages[d.user] = [];
+    }
+
+    //re-enable the send button
+    if (currentChat === d.user) {
+      document.querySelector('.send-btn').disabled = false;
+}
+
     console.log("AES key stored for:", d.user);
     console.log("Current chat:", currentChat);
 
+    return;
+}
+
+//add new type
+if (d.type === "history") {
+    chatHistories[d.with] = [];
+
+    d.messages.forEach(m => {
+        chatHistories[d.with].push({kind: m.type,  from: m.sender,  content: m.content,  filename: m.filename,   size: m.size,    time: m.timestamp});
+    });
+
+    if (currentChat === d.with) {
+        openChat(d.with); // re-render UI
+    }
     return;
 }
 }
@@ -623,12 +694,31 @@ function renderUserList(){
 }
 
 function openChat(user){
-  currentChat=user; 
+  currentChat = user;
+
+  //prevention method MAY 1
+  if (!ws || ws.readyState !== 1) {
+      showToast("Not connected to server", "error");
+      return;
+  }
+
   ws.send(JSON.stringify({
-    type:"request_key",
-    target_user:user
-}));
-unreadCounts[user]=0; renderUserList();
+    type: "request_key",
+    target_user: user
+  }));
+
+  //LOAD MESS INTO FRONT END
+  ws.send(JSON.stringify({
+  type: "get_history",
+  with: user
+  }));
+
+  //in waiting time for the key, temporary block the send button to prevent the error, MAY 1 EVE
+  document.querySelector('.send-btn').disabled = true;
+
+  unreadCounts[user] = 0;
+  renderUserList();
+
   document.getElementById('no-chat').classList.add('hidden');
   document.getElementById('active-chat').classList.remove('hidden');
   document.getElementById('topbar-name').textContent=user;
@@ -672,20 +762,25 @@ async function sendMessage() {
     //mess encryption process
     let encrypted_Text = plain_Text;
     const key = chat_AES_Keys[currentChat];
-    if (key) {
-        try {
-            encrypted_Text = await encrypt_AES(key, plain_Text);
-        } catch (ERROR) {
-            console.error('AES encryption failed:', ERROR);
-            showToast('Encryption error! :(', 'error');
-            return;
-        }
+    if (!key) {
+      showToast("Secure channel chat is NOT ready..:(.. So the message is queued.", "warn");
+
+      if (!pendingMessages[currentChat]) pendingMessages[currentChat] = [];
+      pendingMessages[currentChat].push(plain_Text);
+      return;
+    }
+
+    try {
+      encrypted_Text = await encrypt_AES(key, plain_Text);
+    } catch (err) {
+      showToast("Encryption error!", "error");
+      return;
     }
 
     //sending to sever
     if (ws && ws.readyState === 1) {
         ws.send(JSON.stringify({
-            type: 'message', to: currentChat, content: encrypted_Text}));
+            type: 'message', token: sessionToken, to: currentChat, content: encrypted_Text}));
     } 
     else {
         showToast('Not connected to server!!', 'warn');
@@ -844,10 +939,25 @@ function fileIcon(n){
 function fmtSize(b){ if(!b) return ''; if(b<1024) return b+'B'; if(b<1048576) return (b/1024).toFixed(1)+'KB'; return (b/1048576).toFixed(1)+'MB'; }
 
 // ── TYPING ────────────────────────────────────────────────────────────────────
-function onTyping(){
+/*function onTyping(){
   if(!currentChat||!ws||ws.readyState!==1) return;
   ws.send(JSON.stringify({type:'typing',to:currentChat}));
+}*/ //remove this code to update it to safer version
+//Added code MAY 1 EVE
+let lastTypingSent = 0;
+const TYPING_COOLDOWN = 3000; //Stop sending “user is typing” messages too many times. Only sent ONE TIME each 3 secs.
+
+function onTyping(){
+  if(!currentChat || !ws || ws.readyState !== 1) return;
+
+  const now = Date.now();
+  if (now - lastTypingSent < TYPING_COOLDOWN) return;
+
+  lastTypingSent = now;
+
+  ws.send(JSON.stringify({ type:'typing', to:currentChat  }));
 }
+
 function showTyping(from){
   document.getElementById('typing-ind').textContent=from+' is typing…';
   clearTimeout(typingTimeout);
@@ -923,6 +1033,7 @@ async function decrypt_AES(crypt_Key, base64) {
 } 
 
 //new TextDecoder().decode(plain);
+
 
 </script>
 </body>
