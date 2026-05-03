@@ -1,7 +1,7 @@
 // SecureChat Node Ver
 // APR 26: Porting from Python. Python time is not supported, so new time functions created.
 
-
+console.log("VERSION CHECK: CLEAN MYSQL FIX 1");
 //Handling BB storage
 //import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 //import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -57,19 +57,17 @@ const server = require("http").createServer(app)
 
 //to match with Railway URL settting, MAY 3 MOR
 //const db = mysql.createPool(process.env.MYSQL_PUBLIC_URL); failed to deploy
-const mysql = require("mysql2");
-const url = require("url");
+if (!process.env.MYSQL_PUBLIC_URL) {
+    throw new Error("MYSQL_PUBLIC_URL is missing in environment variables");
+}
 
-const parsed = new URL(process.env.MYSQL_PUBLIC_URL);
+//const db = mysql.createPool(process.env.MYSQL_PUBLIC_URL);
 
-const db = mysql.createPool({
-    host: parsed.hostname,
-    user: parsed.username,
-    password: parsed.password,
-    database: parsed.pathname.replace("/", ""),
-    port: parsed.port
-});
+
+const dbUrl = new URL(process.env.MYSQL_PUBLIC_URL); 
+const db = mysql.createPool({ host: dbUrl.hostname, user: dbUrl.username, password: dbUrl.password, database: dbUrl.pathname.replace(/^\/+/, ""), port: dbUrl.port || 3306 });
 console.log("DB URL loaded:", !!process.env.MYSQL_PUBLIC_URL);
+
 
 //let registered_users = {}; remove because local storage now on MySQL
 //let clients_connected_dict = {}; // store name of client REMOVE APR 30 MOR
@@ -734,13 +732,13 @@ wss.on("connection", (ws) => {
     ws.on("error", () => removeClient(ws));
     ws.on("close", () => removeClient(ws));
    
-    ws.onclose = (e) => {
-    console.log("CLOSED", e);
-    };
+    //ws.onclose = (e) => {
+   // console.log("CLOSED", e);
+    //};
 
-    ws.onerror = (e) => {
-    console.log("ERROR", e);
-    };
+    //ws.onerror = (e) => {
+    //console.log("ERROR", e);
+    //};
 
 });
 
