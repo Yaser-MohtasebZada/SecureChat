@@ -10,6 +10,12 @@
 //const BUCKET = "SecureChatGrp3-Files";use direct
 
 require("dotenv").config(); //use dotenv to hide my database credential, even in testing process, APR 30 EVE
+console.log("env debug temp code");
+console.log("DB_HOST =", process.env.DB_HOST);
+console.log("DB_USER =", process.env.DB_USER);
+console.log("DB_NAME =", process.env.DB_NAME);
+console.log("DB_PORT =", process.env.DB_PORT);
+console.log("--------------");
 
 //handle Backblaze
 //const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3"); //start using Backblaze, MAY 2 MOR
@@ -715,5 +721,13 @@ wss.on("connection", (ws) => {
     ws.on("error", () => removeClient(ws));
     ws.on("close", () => removeClient(ws));
    
+    ws.onclose = (e) => {
+    console.log("CLOSED", e);
+    };
+
+    ws.onerror = (e) => {
+    console.log("ERROR", e);
+    };
+
 });
 
