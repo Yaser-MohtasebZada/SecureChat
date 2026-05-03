@@ -8,14 +8,14 @@
 
 
 //const BUCKET = "SecureChatGrp3-Files";use direct
-
+/* removed MAY 3 MOR
 require("dotenv").config(); //use dotenv to hide my database credential, even in testing process, APR 30 EVE
 console.log("env debug temp code");
 console.log("DB_HOST =", process.env.DB_HOST);
 console.log("DB_USER =", process.env.DB_USER);
 console.log("DB_NAME =", process.env.DB_NAME);
 console.log("DB_PORT =", process.env.DB_PORT);
-console.log("--------------");
+console.log("--------------");*/
 
 //handle Backblaze
 //const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3"); //start using Backblaze, MAY 2 MOR
@@ -56,7 +56,19 @@ const server = require("http").createServer(app)
 });*/
 
 //to match with Railway URL settting, MAY 3 MOR
-const db = mysql.createPool(process.env.MYSQL_PUBLIC_URL);
+//const db = mysql.createPool(process.env.MYSQL_PUBLIC_URL); failed to deploy
+const mysql = require("mysql2");
+const url = require("url");
+
+const parsed = new URL(process.env.MYSQL_PUBLIC_URL);
+
+const db = mysql.createPool({
+    host: parsed.hostname,
+    user: parsed.username,
+    password: parsed.password,
+    database: parsed.pathname.replace("/", ""),
+    port: parsed.port
+});
 console.log("DB URL loaded:", !!process.env.MYSQL_PUBLIC_URL);
 
 //let registered_users = {}; remove because local storage now on MySQL
