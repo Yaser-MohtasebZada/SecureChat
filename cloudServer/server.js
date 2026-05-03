@@ -46,17 +46,18 @@ app.use(express.json({ limit: "23mb" }));
 
 const server = require("http").createServer(app)
 
-//handle mySQL
-const db = mysql.createPool({
+//handle mySQL //eliminated MAY 3, MOR
+/*const db = mysql.createPool({
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
     port: process.env.DB_PORT || 3306
-});
+});*/
 
-
-
+//to match with Railway URL settting, MAY 3 MOR
+const db = mysql.createPool(process.env.MYSQL_PUBLIC_URL);
+console.log("DB URL loaded:", !!process.env.MYSQL_PUBLIC_URL);
 
 //let registered_users = {}; remove because local storage now on MySQL
 //let clients_connected_dict = {}; // store name of client REMOVE APR 30 MOR

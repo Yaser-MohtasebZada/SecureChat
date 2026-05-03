@@ -363,3 +363,13 @@ CPSC 455 - GROUP 3 - SPRING 2026
 - Clean up amd make sure client.html is compatible with server.js
 - Check the connections between users on different network setting (Monday testing)
 
+# 2 MAY 2026 EVE
+## Progress
+- Try to test created and chat, failed
+- Connected successfuly the mySQL database on Infinity Free to Render page.
+- Failed to connect to login users, have to move the DB.
+- Checked pros and cons of Railway and PlanetScale
+
+## Planned
+- Move the DB to Railway DB??
+
