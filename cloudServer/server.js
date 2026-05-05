@@ -664,6 +664,7 @@ wss.on("connection", (ws) => {
                         type: "message",
                         from: username,
                         content: data.content,
+                        token: session_tokens[username], //found the issues, missing this all the time, NOON MAY 5
                         time: getTimeString()
                     }));
                 }
