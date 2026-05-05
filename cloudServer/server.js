@@ -624,6 +624,11 @@ wss.on("connection", (ws) => {
         if (type === "message") {
             console.log("mess hit the server!!");
             const token = data.token;
+            
+            //token debug log - MAY 5 MOR
+            console.log("token debuging:");
+            console.log("server token:", session_tokens[username]);
+            console.log("client token:", token);
 
             if (!username || session_tokens[username] !== token) return;
 
