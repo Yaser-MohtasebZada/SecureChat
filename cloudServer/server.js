@@ -1,7 +1,11 @@
 // SecureChat Node Ver
 // APR 26: Porting from Python. Python time is not supported, so new time functions created.
 
+//debug MAY 3., 2026 mor
 console.log("VERSION CHECK: CLEAN MYSQL FIX 1");
+console.log("MYSQL DECLARATION TEST");
+console.log("FILE LOADED AT:", __filename);
+
 //Handling BB storage
 //import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 //import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -729,16 +733,17 @@ wss.on("connection", (ws) => {
         }
     });
 
-    ws.on("error", () => removeClient(ws));
-    ws.on("close", () => removeClient(ws));
+    //ws.on("error", () => removeClient(ws));
+    //ws.on("close", () => removeClient(ws));
    
-    //ws.onclose = (e) => {
-   // console.log("CLOSED", e);
-    //};
+    //debug code MAY 4 EVE for the popup "Sever closed connection"
+    ws.on("close", () => {
+        console.log("close event", username, new Date().toISOString());
+    });
 
-    //ws.onerror = (e) => {
-    //console.log("ERROR", e);
-    //};
+    ws.on("error", (err) => {
+        console.log("error event", err, username);
+    });
 
 });
 
