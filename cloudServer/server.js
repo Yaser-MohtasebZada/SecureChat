@@ -486,7 +486,7 @@ wss.on("connection", (ws) => {
                 const token = crypto.randomBytes(16).toString("hex");
                 session_tokens[username] = token;
 
-                ws.send(JSON.stringify({ type: "auth_success", token }));
+                ws.send(JSON.stringify({ type: "auth_success", token, debug: "token is pased through" }));
 
                 //notify all connected users
                 wss.clients.forEach(c => {
@@ -629,7 +629,10 @@ wss.on("connection", (ws) => {
             console.log("token debuging:");
             console.log("server token:", session_tokens[username]);
             console.log("client token:", token);
-
+            
+            //test username mismatch case
+            console.log("username lookup:", target);
+            console.log("username used to connected:", Array.from(clients_connected_dict.values()));
             if (!username || session_tokens[username] !== token) return;
 
             //if (!allowed_to_send(username)) return; update for clearer messgae on UI
@@ -651,7 +654,8 @@ wss.on("connection", (ws) => {
                 const mappedUser = clients_connected_dict.get(c);
                 console.log("client:", mappedUser, "| ready:", c.readyState);
             });
-    
+            
+            console.log("sending token:", sessionToken);
             wss.clients.forEach(c => {
                 if (clients_connected_dict.get(c) === target) {
                     c.send(JSON.stringify({

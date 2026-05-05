@@ -363,6 +363,7 @@ function connectWS(serverURL, username, passwd, connection_Type) {
         };
 
         ws.onmessage = event => {
+            console.log("raw mess:", event.data);
             handleMsg(event.data);
         };
 
@@ -451,7 +452,8 @@ async function handleMsg(raw){ //async to use "await" [mar13]
     setConn('connected');
     startHeartbeat();
     sessionToken = d.token;
-    
+    console.log("token store:", sessionToken);
+
     if(!RSA_Key_Pair){
         await create_Key_Pair();
     }
