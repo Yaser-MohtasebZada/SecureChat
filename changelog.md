@@ -373,3 +373,20 @@ CPSC 455 - GROUP 3 - SPRING 2026
 ## Planned
 - Move the DB to Railway DB??
 
+# 3 MAY 2026 MOR
+## Progress
+- Create the tables on Railway
+
+## Planned
+- Testing and fix bugs, priority test the connections and login.
+
+# 4 MAY 2026 EVE
+## Progress
+- Test the connection of the system:
+ + Test register: PASSED. Fixing the read announcement "Red lines"
+ + Test login: PASSED. Fix the announcement while still hide the real reason for developers only.
+ + Test rate limit: PASSED
+
+## Planned
+- Testing and fix bugs, priority test the connections and login.
+

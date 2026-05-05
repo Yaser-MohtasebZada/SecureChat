@@ -371,9 +371,10 @@ function connectWS(serverURL, username, passwd, connection_Type) {
             if(debug_flag ==true)
               console.log("DISCONNECTED", event); //Add for debugging apr 30
             clearInterval(heartbeatTimer);
-            if (pendingAuth) {
-                pendingAuth.reject(new Error('Server closed connection.'));
-                pendingAuth = null;
+            if (!authDone && pendingAuth) {
+              pendingAuth.reject(new Error('Server closed during auth.'));
+              pendingAuth = null;
+              return;
             } else {
                 showToast('Disconnected. Reconnecting in 2s…', 'warn');
                 scheduleReconnect();
@@ -439,12 +440,14 @@ function addToHistory(chatUser, mess) {
   }
 }
 
+let authDone = false; //add to fix red line pop-up issues [close connections], MAY 4 EVE
 async function handleMsg(raw){ //async to use "await" [mar13]
   let d;
+  
   try{d=JSON.parse(raw);}catch(e){return;}
 
   if(d.type==='auth_success'||d.type==='register_success'){
-
+    authDone = true;
     setConn('connected');
     startHeartbeat();
     sessionToken = d.token;
@@ -561,7 +564,7 @@ async function handleMsg(raw){ //async to use "await" [mar13]
 
       if(!chatHistories[senderId]) chatHistories[senderId] = [];
       //chatHistories[senderId].push({
-       addToHistory(senderId, {kind: 'file', from: senderId,  filename: d.filename,  size: d.size,  data: decrypted_Data,  time: d.time || nowHM()});
+       addToHistory(senderId, {kind: 'file', from: senderId, filename: d.filename, size: d.size, data: decrypted_Data, time: d.time || nowHM()});
       if(currentChat === senderId){
           appendFileReceived(senderId, d.filename, d.size, decrypted_Data, d.time||nowHM());
           scrollBottom();

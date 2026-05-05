@@ -441,7 +441,7 @@ wss.on("connection", (ws) => {
             if (!allowed_to_try_login(username)) {
                 ws.send(JSON.stringify({
                     type: "auth_fail",
-                    message: "Too many attempts :("
+                    message: "Block from login. Too many login attempts!" //a little clear message, updated MAY 4 EVE.
                 }));
                 return;
             }
@@ -455,7 +455,8 @@ wss.on("connection", (ws) => {
                 //user not found
                 if (rows.length === 0) {
                     record_failed_login(username);//add the feature back
-                    ws.send(JSON.stringify({ type: "auth_fail", message: "Fail, 1st reason!"})); //message is public but reason is private for devs to fix
+                    ws.send(JSON.stringify({ type: "auth_fail", message: "Login attempt failed (Code:0001A)!"})); 
+                    //message is public but reason is private for devs to fix
                     return;
                 }
 
@@ -464,7 +465,9 @@ wss.on("connection", (ws) => {
                 //wrong password
                 if (!check_pass(pass, hashed)) {
                     record_failed_login(username); //add the feature back
-                    ws.send(JSON.stringify({ type: "auth_fail", message: "Fail, 2nd reason!"})); //message is public but reason is private for devs to fix
+                    ws.send(JSON.stringify({ type: "auth_fail", message: "Login attempt failed (Code:0010B)!"})); 
+                    //message about the fail attempts is public but reason is private for devs to fix. 
+                    // //Updated the content of the announcement, MAY 4 EVE
                     return;
                 }
 
@@ -494,7 +497,8 @@ wss.on("connection", (ws) => {
                 //server error == failed attempt
                 record_failed_login(username);
 
-                ws.send(JSON.stringify({ type: "server_error", message: "Fail, 3RD reason!"})); //message is public but reason is private for devs to fix
+                ws.send(JSON.stringify({ type: "server_error", message: "Login attempt failed (Code:0011C)!"})); 
+                //message is public but reason is private for devs to fix //Updated the content of the announcement, MAY 4 EVE
             }
 
             return;
