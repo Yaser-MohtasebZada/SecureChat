@@ -363,8 +363,12 @@ function connectWS(serverURL, username, passwd, connection_Type) {
         };
 
         ws.onmessage = event => {
-            console.log("raw mess:", event.data);
+          console.log("raw mess:", event.data);
+          try {
             handleMsg(event.data);
+          } catch (err) {
+            console.error("handleMsg crashed!", err); //TRYING TO FIND THE REASON CHAT FAIL, MAY 5 mor
+          };
         };
 
         ws.onclose = (event) => {
