@@ -451,8 +451,15 @@ async function handleMsg(raw){ //async to use "await" [mar13]
     authDone = true;
     setConn('connected');
     startHeartbeat();
-    sessionToken = d.token;
-    console.log("token store:", sessionToken);
+    //sessionToken = d.token;
+    sessionToken = d.token || d.session_token || d.sessionToken;
+    //console.log("token store:", sessionToken);
+    console.log("Auth debig process:", d);
+    console.log("Session token:", sessionToken);
+
+    if (!sessionToken) {
+        console.warn("Token is missing :(", d);
+    }
 
     if(!RSA_Key_Pair){
         await create_Key_Pair();
