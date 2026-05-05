@@ -622,6 +622,7 @@ wss.on("connection", (ws) => {
 
         // MESSAGE
         if (type === "message") {
+            console.log("mess hit the server!!");
             const token = data.token;
 
             if (!username || session_tokens[username] !== token) return;
@@ -637,6 +638,15 @@ wss.on("connection", (ws) => {
 
             const target = data.to;
 
+            console.log("Message flow debugging");
+            console.log("from:", username);
+            console.log("to:", target);
+
+            wss.clients.forEach(c => {
+                const mappedUser = clients_connected_dict.get(c);
+                console.log("client:", mappedUser, "| ready:", c.readyState);
+            });
+    
             wss.clients.forEach(c => {
                 if (clients_connected_dict.get(c) === target) {
                     c.send(JSON.stringify({
