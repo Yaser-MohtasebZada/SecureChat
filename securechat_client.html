@@ -450,7 +450,7 @@ async function handleMsg(raw){ //async to use "await" [mar13]
   let d;
   
   try{d=JSON.parse(raw);}catch(e){return;}
-
+/*
   if(d.type==='auth_success'||d.type==='register_success'){
     authDone = true;
     setConn('connected');
@@ -458,7 +458,7 @@ async function handleMsg(raw){ //async to use "await" [mar13]
     //sessionToken = d.token;
     sessionToken = d.token || d.session_token || d.sessionToken;
     //console.log("token store:", sessionToken);
-    console.log("Auth debig process:", d);
+    console.log("Auth debug process:", d);
     console.log("Session token:", sessionToken);
 
     if (!sessionToken) {
@@ -479,7 +479,54 @@ async function handleMsg(raw){ //async to use "await" [mar13]
     if(pendingAuth){pendingAuth.resolve();pendingAuth=null;}
     enterApp();
     return;
-}
+}*/
+  if (d.type === 'auth_success' || d.type === 'register_success') {
+      console.log("Auth_success raw:", d);
+      authDone = true;
+      setConn('connected');
+      startHeartbeat();
+
+      //token part
+      if (d.token) {
+        sessionToken = d.token;
+        console.log("Session token:", sessionToken);
+      } else {
+          console.warn("No token in auth_success!", d);
+      }
+
+      if (!sessionToken) {
+          console.warn("Token from server is missing!", d);
+      }
+
+      //resolve loging
+      if (pendingAuth) {
+          pendingAuth.resolve();
+          pendingAuth = null;
+      }
+
+      enterApp();
+
+      //crypto part
+      (async () => {
+          try {
+              if (!RSA_Key_Pair) {
+                  await create_Key_Pair();
+              }
+
+              const pubKey = await export_Pub_Key();
+
+              ws.send(JSON.stringify({
+                  type: "post_public_key",
+                  key: pubKey
+              }));
+
+          } catch (err) {
+              console.error("Crypto failed:", err);
+          }
+      })();
+
+      return;
+  }
   if(d.type==='auth_fail'||d.type==='error'){
     const msg=d.message||'Authentication failed.';
     if(pendingAuth){pendingAuth.reject(new Error(msg));pendingAuth=null;}
