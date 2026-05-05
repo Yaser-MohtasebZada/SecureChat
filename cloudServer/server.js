@@ -251,6 +251,11 @@ function record_failed_login(username) {
 
 //May 1, same logic, make a new function to handle ws.on("error") and ws.on("close").
 function removeClient(ws) {
+    //add the prevention of double-removable
+    if (!ws || ws._removed) 
+        return;
+    ws._removed = true;
+
     const user = clients_connected_dict.get(ws);
     clients_connected_dict.delete(ws);
 
@@ -374,8 +379,10 @@ server.listen(PORT, () => { //remove to test RENDER again
 //HEARTBEAT
 setInterval(() => {
     wss.clients.forEach(ws => {
-        if (!ws.isAlive) return ws.terminate();
-
+        if (!ws.isAlive) { //prevent dead socket remain online
+            removeClient(ws);
+            return ws.terminate();
+        }
         ws.isAlive = false;
         ws.ping();
     });
@@ -743,10 +750,12 @@ wss.on("connection", (ws) => {
     //debug code MAY 4 EVE for the popup "Sever closed connection"
     ws.on("close", () => {
         console.log("close event", username, new Date().toISOString());
+        removeClient(ws);//test finnished, recovered this feature.
     });
 
     ws.on("error", (err) => {
         console.log("error event", err, username);
+        removeClient(ws);//test finnished, recovered this feature.
     });
 
 });

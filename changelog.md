@@ -387,6 +387,8 @@ CPSC 455 - GROUP 3 - SPRING 2026
  + Test login: PASSED. Fix the announcement while still hide the real reason for developers only.
  + Test rate limit: PASSED
 
+ + Trying to fix the online users issues, this come from a commented out issues.
+
 ## Planned
 - Testing and fix bugs, priority test the connections and login.
 
