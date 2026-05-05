@@ -624,6 +624,7 @@ wss.on("connection", (ws) => {
         if (type === "message") {
             console.log("mess hit the server!!");
             const token = data.token;
+            const target = data.to;
             
             //token debug log - MAY 5 MOR
             console.log("token debuging:");
@@ -644,7 +645,7 @@ wss.on("connection", (ws) => {
                 return;
             }
 
-            const target = data.to;
+            
 
             console.log("Message flow debugging");
             console.log("from:", username);
@@ -655,7 +656,7 @@ wss.on("connection", (ws) => {
                 console.log("client:", mappedUser, "| ready:", c.readyState);
             });
             
-            console.log("sending token:", sessionToken);
+            console.log("sending token:", session_tokens[username]);
             wss.clients.forEach(c => {
                 if (clients_connected_dict.get(c) === target) {
                     c.send(JSON.stringify({
