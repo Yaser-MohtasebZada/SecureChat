@@ -882,7 +882,7 @@ async function handleFileSelect(e){
 
     if(encryption_Key){ base_64 = await encrypt_AES(encryption_Key, base_64);}
     ws.send(JSON.stringify({
-      type:'file', to:currentChat, filename:selected_File.name,
+      type:'file', token: sessionToken, to:currentChat, filename:selected_File.name, //missing token, fixed MAY 5 MOR
       size:selected_File.size, data:base_64
     }));
 
