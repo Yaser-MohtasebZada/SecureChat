@@ -358,7 +358,8 @@ function connectWS(serverURL, username, passwd, connection_Type) {
             ws.send(JSON.stringify({
               type: connection_Type === 'login' ? 'auth' : 'register',
               username: username,
-              password: passwd
+              password: passwd,
+              token: sessionToken
             }));
         };
 
@@ -517,7 +518,8 @@ async function handleMsg(raw){ //async to use "await" [mar13]
 
               ws.send(JSON.stringify({
                   type: "post_public_key",
-                  key: pubKey
+                  key: pubKey,
+                
               }));
 
           } catch (err) {
@@ -768,12 +770,14 @@ function openChat(user){
   ws.send(JSON.stringify({
     type: "request_key",
     target_user: user
+   
   }));
 
   //LOAD MESS INTO FRONT END
   ws.send(JSON.stringify({
   type: "get_history",
   with: user
+
   }));
 
   //in waiting time for the key, temporary block the send button to prevent the error, MAY 1 EVE
@@ -843,7 +847,7 @@ async function sendMessage() {
     //sending to sever
     if (ws && ws.readyState === 1) {
         ws.send(JSON.stringify({
-            type: 'message', token: sessionToken, to: currentChat, content: encrypted_Text}));
+            type: 'message', to: currentChat, content: encrypted_Text, token: sessionToken})); //incosistency issues, MAY 5 NOON
     } 
     else {
         showToast('Not connected to server!!', 'warn');
@@ -942,8 +946,8 @@ async function handleFileSelect(e){
 
     if(encryption_Key){ base_64 = await encrypt_AES(encryption_Key, base_64);}
     ws.send(JSON.stringify({
-      type:'file', token: sessionToken, to:currentChat, filename:selected_File.name, //missing token, fixed MAY 5 MOR
-      size:selected_File.size, data:base_64
+      type:'file', to:currentChat, filename:selected_File.name, //missing token, fixed MAY 5 MOR
+      size:selected_File.size, data:base_64, token: sessionToken
     }));
 
     const timestamps=nowHM();
@@ -1018,7 +1022,7 @@ function onTyping(){
 
   lastTypingSent = now;
 
-  ws.send(JSON.stringify({ type:'typing', to:currentChat  }));
+  ws.send(JSON.stringify({ type:'typing', to:currentChat}));
 }
 
 function showTyping(from){
