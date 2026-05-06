@@ -288,7 +288,9 @@ const RATE_LIMIT=5, RATE_WINDOW=8000;
 let sessionToken = localStorage.getItem("sessionToken") || null;
 
 function isAuthenticated() {
-  return typeof sessionToken === "string" && sessionToken.length > 10;
+  const ok = typeof sessionToken === "string" && sessionToken.length > 10;
+  if (!ok) console.warn("AUTH FAIL:", sessionToken);
+  return ok;
 }
 
 function safeSend(payload) {
@@ -513,6 +515,7 @@ async function handleMsg(raw){ //async to use "await" [mar13]
     return;
 }*/
   if (d.type === 'auth_success' || d.type === 'register_success') {
+      console.log("full auth pack:", JSON.stringify(d, null, 2));
       console.log("Auth_success raw:", d);
       authDone = true;
       setConn('connected');
@@ -557,7 +560,13 @@ async function handleMsg(raw){ //async to use "await" [mar13]
                   key: pubKey,
                 
               });
-
+              
+              if (!sessionToken) {
+                console.error("No session tokeN, NO APP ENTRY");
+                showToast("Auth failed: no session token", "error");
+                doLogout();
+                return;
+            }
               enterApp();
 
           } catch (err) {
@@ -917,6 +926,8 @@ async function sendMessage() {
     if (!currentChat) return;
 
     //if missing token, MAY 5 EVE
+    loadSessionToken();
+
     if (!sessionToken || sessionToken === "undefined" || sessionToken === "null") {
         showToast("Session invalid. Please relogin.", "error");
         //console.error("invalid token:", sessionToken);
@@ -1071,169 +1082,8 @@ async function handleFileSelect(e){
     let encryption_Key = chat_AES_Keys[currentChat];
 
     if(encryption_Key){ base_64 = await encrypt_AES(encryption_Key, base_64);}
+    
+    // Ensure token is loaded
+    loadSessionToken();
+    
     safeSend({
-      type:'file', to:currentChat, filename:selected_File.name, //missing token, fixed MAY 5 MOR
-      size:selected_File.size, data:base_64, 
-      token: (typeof sessionToken === "string" && sessionToken.length > 0)
-        ? sessionToken
-        : null
-
-    }); 
-
-    
-
-    const timestamps=nowHM();
-
-    if(!chatHistories[currentChat]) 
-      chatHistories[currentChat]=[];
-
-    chatHistories[currentChat].push({kind:'file',
-    from:myUsername, filename:selected_File.name, size:selected_File.size,
-    data:base_64, time:timestamps
-    });
-
-    appendFileSent(selected_File.name, selected_File.size, base_64, timestamps); 
-    scrollBottom();
-  };
-
-  file_Reader.readAsDataURL(selected_File);
-  e.target.value='';
-}
-function appendFileSent(filename,size,b64,time){
-  const wrap=document.createElement('div'); wrap.className='msg-wrap own';
-  const meta=document.createElement('div'); meta.className='msg-meta';
-  const ts=document.createElement('span'); ts.textContent=time||''; meta.appendChild(ts);
-  const bub=fileBubble(filename,size,b64);
-  wrap.appendChild(meta); wrap.appendChild(bub);
-  document.getElementById('messages').appendChild(wrap);
-}
-function appendFileReceived(from,filename,size,b64,time){
-  const wrap=document.createElement('div'); wrap.className='msg-wrap other';
-  const meta=document.createElement('div'); meta.className='msg-meta';
-  const s=document.createElement('span'); s.className='sender'; s.textContent=from; meta.appendChild(s);
-  const ts=document.createElement('span'); ts.textContent=time||''; meta.appendChild(ts);
-  const bub=fileBubble(filename,size,b64);
-  wrap.appendChild(meta); wrap.appendChild(bub);
-  document.getElementById('messages').appendChild(wrap);
-}
-function fileBubble(filename,size,b64){
-  const bub=document.createElement('div'); bub.className='file-bubble';
-  const btn=document.createElement('button'); btn.className='file-dl'; btn.textContent='⬇ Save';
-  btn.onclick=()=>{ const a=document.createElement('a'); a.href='data:application/octet-stream;base64,'+b64; a.download=filename; a.click(); };
-  bub.innerHTML=`<div class="file-icon">${fileIcon(filename)}</div>
-    <div class="file-info"><div class="file-name">${esc(filename)}</div><div class="file-size">${fmtSize(size)}</div></div>`;
-  bub.appendChild(btn); return bub;
-}
-function fileIcon(n){
-  const x=(n.split('.').pop()||'').toLowerCase();
-  if(['jpg','jpeg','png','gif','webp','svg'].includes(x)) return '🖼️';
-  if(x==='pdf') return '📄';
-  if(['zip','rar','7z','tar','gz'].includes(x)) return '🗜️';
-  if(['mp4','mov','avi','mkv'].includes(x)) return '🎬';
-  if(['mp3','wav','ogg','flac'].includes(x)) return '🎵';
-  if(['doc','docx'].includes(x)) return '📝';
-  if(['xls','xlsx','csv'].includes(x)) return '📊';
-  return '📁';
-}
-function fmtSize(b){ if(!b) return ''; if(b<1024) return b+'B'; if(b<1048576) return (b/1024).toFixed(1)+'KB'; return (b/1048576).toFixed(1)+'MB'; }
-
-// ── TYPING ────────────────────────────────────────────────────────────────────
-/*function onTyping(){
-  if(!currentChat||!ws||ws.readyState!==1) return;
-  ws.send(JSON.stringify({type:'typing',to:currentChat}));
-}*/ //remove this code to update it to safer version
-//Added code MAY 1 EVE
-let lastTypingSent = 0;
-const TYPING_COOLDOWN = 3000; //Stop sending “user is typing” messages too many times. Only sent ONE TIME each 3 secs.
-
-function onTyping(){
-  if(!currentChat || !ws || ws.readyState !== 1) return;
-
-  const now = Date.now();
-  if (now - lastTypingSent < TYPING_COOLDOWN) return;
-
-  lastTypingSent = now;
-
-  safeSend({ type:'typing', to:currentChat});
-}
-
-function showTyping(from){
-  document.getElementById('typing-ind').textContent=from+' is typing…';
-  clearTimeout(typingTimeout);
-  typingTimeout=setTimeout(()=>{document.getElementById('typing-ind').textContent='';},2500);
-}
-
-// ── UTILS ─────────────────────────────────────────────────────────────────────
-function nowHM(){ const d=new Date(); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
-function scrollBottom(){ const m=document.getElementById('messages'); m.scrollTop=m.scrollHeight; }
-function autoResize(el){ el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,120)+'px'; }
-function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-
-function setConn(state){
-  const dot=document.getElementById('conn-dot'), lbl=document.getElementById('conn-label'), wrap=document.getElementById('conn-status');
-  if(state==='connected'){dot.className='conn-dot ok';lbl.textContent='Connected';wrap.classList.add('ok');}
-  else if(state==='connecting'){dot.className='conn-dot';lbl.textContent='Connecting…';wrap.classList.remove('ok');}
-  else{dot.className='conn-dot err';lbl.textContent='Disconnected';wrap.classList.remove('ok');}
-}
-
-function showToast(msg,type=''){
-  const t=document.getElementById('toast');
-  const d=document.createElement('div'); d.className='toast-item '+(type||''); d.textContent=msg;
-  t.appendChild(d); setTimeout(()=>d.remove(),3500);
-}
-
-//CRYPTO [MAR 13]
-async function create_Key_Pair() {
-    RSA_Key_Pair = await window.crypto.subtle.generateKey(
-        {
-            name: "RSA-OAEP", hash: "SHA-256", modulusLength: 4096, publicExponent: new Uint8Array([1, 0, 1]) },
-        true, ["encrypt", "decrypt"] 
-        );
-}
-/*
-async function export_Pub_Key(){
-    const p_key = await crypto.subtle.exportKey(
-        "spki",
-        RSA_Key_Pair.publicKey
-    );
-
-    return btoa(String.fromCharCode(...new Uint8Array(p_key)));
-} CAUSING MISMATCH WITH SERVER WHEN MESSAGING - MAR 14*/
-
-async function export_Pub_Key() {
-    const p_key = await crypto.subtle.exportKey("spki", RSA_Key_Pair.publicKey);
-    const base_64 = btoa(String.fromCharCode(...new Uint8Array(p_key)));
-
-    const pem_formated =
-        "-----BEGIN PUBLIC KEY-----\n" +
-        base_64.match(/.{1,64}/g).join("\n") +
-        "\n-----END PUBLIC KEY-----";
-    return pem_formated;
-}
-
-async function encrypt_AES(crypt_Key, mess) {
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const encoded_Text = new TextEncoder().encode(mess);
-    const encrypted = await crypto.subtle.encrypt({name:"AES-GCM", iv}, crypt_Key, encoded_Text);
-    
-    const data_package = new Uint8Array(iv.length + encrypted.byteLength);
-    data_package.set(iv);
-    data_package.set(new Uint8Array(encrypted), iv.length);
-
-    return btoa(String.fromCharCode(...data_package)); // always base 64 for transport
-}
-
-async function decrypt_AES(crypt_Key, base64) {
-    const data_package = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-    const iv = data_package.slice(0, 12);
-    const encrypted = data_package.slice(12);
-    const decoded_Text = await crypto.subtle.decrypt({name:"AES-GCM", iv}, crypt_Key, encrypted);
-    return new TextDecoder().decode(decoded_Text);
-} 
-
-//new TextDecoder().decode(plain);
-
-
-</script>
-</body>
-</html>
