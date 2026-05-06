@@ -481,6 +481,7 @@ function addToHistory(chatUser, mess) {
 
 let authDone = false; //add to fix red line pop-up issues [close connections], MAY 4 EVE
 async function handleMsg(raw){ //async to use "await" [mar13]
+  console.log("handleMsg called, type:", JSON.parse(raw).type);
   let d;
   
   try{d=JSON.parse(raw);}catch(e){return;}
