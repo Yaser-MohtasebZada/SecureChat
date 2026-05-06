@@ -287,6 +287,17 @@ const RATE_LIMIT=5, RATE_WINDOW=8000;
 //let sessionToken = null; //session token MATCH with backend
 let sessionToken = localStorage.getItem("sessionToken") || null;
 
+function loadSessionToken() {
+    const t = localStorage.getItem("sessionToken");
+    if (t && t !== "undefined" && t !== "null") {
+        sessionToken = t;
+    } else {
+        sessionToken = null;
+    }
+}
+
+loadSessionToken();
+
 const EMOJIS=['😀','😂','😆','🥰','😎','🤔','😢', '🧐', //add the :monocle: lol
   '❤️','💔','🔥','💯','👍','👎',
   '🎉','✅','❌','❓','⚠️','🔒', '🚀','⭐','💡','🌐','💻',
@@ -364,10 +375,10 @@ function connectWS(serverURL, username, passwd, connection_Type) {
             }));
         };
 
-        ws.onmessage = event => {
+        ws.onmessage = async event => {
           console.log("raw mess:", event.data);
           try {
-            handleMsg(event.data);
+            await handleMsg(event.data);
           } catch (err) {
             console.error("handleMsg crashed!", err); //TRYING TO FIND THE REASON CHAT FAIL, MAY 5 mor
           };
@@ -505,7 +516,7 @@ async function handleMsg(raw){ //async to use "await" [mar13]
           pendingAuth = null;
       }
 
-      enterApp();
+      
 
       //crypto part
       (async () => {
@@ -521,6 +532,8 @@ async function handleMsg(raw){ //async to use "await" [mar13]
                   key: pubKey,
                 
               }));
+
+              enterApp();
 
           } catch (err) {
               console.error("Crypto failed:", err);
@@ -626,8 +639,16 @@ async function handleMsg(raw){ //async to use "await" [mar13]
 
       if(!chatHistories[senderId]) chatHistories[senderId] = [];
       //chatHistories[senderId].push({
-       addToHistory(senderId, {kind: 'file', from: senderId, filename: d.filename, size: d.size, data: decrypted_Data, time: d.time || nowHM()});
-      if(currentChat === senderId){
+       //addToHistory(senderId, {kind: 'file', from: senderId, filename: d.filename, size: d.size, data: decrypted_Data, time: d.time || nowHM()});
+      addToHistory(senderId, {
+        kind: 'file',
+        from: senderId,
+        filename: d.filename,
+        size: d.size,
+        data: decrypted_Data,
+        time: d.time || nowHM()
+      });
+       if(currentChat === senderId){
           appendFileReceived(senderId, d.filename, d.size, decrypted_Data, d.time||nowHM());
           scrollBottom();
       }
@@ -698,14 +719,15 @@ async function handleMsg(raw){ //async to use "await" [mar13]
 
 //add new type
 if (d.type === "history") {
-    chatHistories[d.with] = [];
+    const userId = d.with;
+    chatHistories[userId] = [];
 
     d.messages.forEach(m => {
-        chatHistories[d.with].push({kind: m.type,  from: m.sender,  content: m.content,  filename: m.filename,   size: m.size,    time: m.timestamp});
+        chatHistories[userId].push({kind: m.type,  from: m.sender,  content: m.content,  filename: m.filename,   size: m.size,    time: m.timestamp});
     });
 
-    if (currentChat === d.with) {
-        openChat(d.with); // re-render UI
+    if (currentChat === userId) {
+        openChat(userId); // re-render UI
     }
     return;
 }
@@ -870,11 +892,12 @@ async function sendMessage() {
     if (!currentChat) return;
 
     //if missing token, MAY 5 EVE
-    if (!sessionToken) {
-        showToast("Session expired!! Please log in again.", "error");
-        console.error("Token is missing");
-        return;
-    }
+    if (!sessionToken || sessionToken === "undefined" || sessionToken === "null") {
+        showToast("Session invalid. Please relogin.", "error");
+        //console.error("invalid token:", sessionToken);
+        doLogout();
+    return;
+}
 
     const chat_Input = document.getElementById('msg-input');
     let plain_Text = chat_Input.value.trim();
@@ -913,8 +936,19 @@ async function sendMessage() {
     console.log("Message now sending with token:", sessionToken);
     //sending to sever
     if (ws && ws.readyState === 1) {
-        ws.send(JSON.stringify({
-            type: 'message', to: currentChat, content: encrypted_Text, token: sessionToken})); //incosistency issues, MAY 5 NOON
+        //ws.send(JSON.stringify({
+            //type: 'message', to: currentChat, content: encrypted_Text, token: sessionToken})); //incosistency issues, MAY 5 NOON
+      const safeToken = (typeof sessionToken === "string" && sessionToken.length > 0)
+          ? sessionToken
+          : null;
+
+      ws.send(JSON.stringify({
+          type: 'message',
+          to: currentChat,
+          content: encrypted_Text,
+          token: safeToken
+      }));
+
     } 
     else {
         showToast('Not connected to server!!', 'warn');
@@ -1014,8 +1048,14 @@ async function handleFileSelect(e){
     if(encryption_Key){ base_64 = await encrypt_AES(encryption_Key, base_64);}
     ws.send(JSON.stringify({
       type:'file', to:currentChat, filename:selected_File.name, //missing token, fixed MAY 5 MOR
-      size:selected_File.size, data:base_64, token: sessionToken
-    }));
+      size:selected_File.size, data:base_64, 
+      token: (typeof sessionToken === "string" && sessionToken.length > 0)
+        ? sessionToken
+        : null
+
+    })); 
+
+    
 
     const timestamps=nowHM();
 
