@@ -718,75 +718,71 @@ async function handleMsg(raw){ //async to use "await" [mar13]
     return;
   }
 
-  if(d.type === "key_response"){
-    const fingerprint = d.fingerprint
-      if (!fingerprint) {
-      console.warn("Sever's fingerprint IS MISSING :(");
-      return;
-    }
+    if(d.type === "key_response"){
+      const fingerprint = d.fingerprint
+        if (!fingerprint) {
+          console.warn("Sever's fingerprint IS MISSING :(");
+        return;
+      }
 
-    console.log("d.key value:", d.key);
-    //console.log("d.key type:", typeof d.key);
-    console.log("d.key first 50 chars:", String(d.key).substring(0, 50));
+      console.log("d.key value:", d.key);
+      //console.log("d.key type:", typeof d.key);
+      console.log("d.key first 50 chars:", String(d.key).substring(0, 50));
 
-    try {
-        const encrypted_Key = Uint8Array.from(atob(d.key),c=>c.charCodeAt(0));
-        //security check, MAY 1 EVE
-        if (trustedFingerprints[d.user] && trustedFingerprints[d.user] !== fingerprint) {
+      try {
+      const cleanedKey = d.key
+          .replace(/-----BEGIN PUBLIC KEY-----/, '')
+          .replace(/-----END PUBLIC KEY-----/, '')
+          .replace(/\s+/g, '');
+
+      const encrypted_Key = Uint8Array.from(atob(cleanedKey), c => c.charCodeAt(0));
+
+      if (trustedFingerprints[d.user] && trustedFingerprints[d.user] !== fingerprint) {
           showToast("Key fingerprint mismatch!", "error");
           return;
-        }
-    }catch (err) {
-        console.error("atob failed:", err, "| key was:", d.key);
-        return; // don't let it crash the whole handleMsg
+      }
+
+      trustedFingerprints[d.user] = fingerprint;
+
+      const raw_Key = await crypto.subtle.decrypt(
+          {name: "RSA-OAEP"}, RSA_Key_Pair.privateKey, encrypted_Key
+      );
+
+      chat_AES_Keys[d.user] = await crypto.subtle.importKey(
+          "raw", raw_Key, {name: "AES-GCM"}, false, ["encrypt", "decrypt"]
+      );
+
+      if (pendingMessages[d.user]?.length > 0) {
+          for (const mess of pendingMessages[d.user]) {
+              document.getElementById('msg-input').value = mess;
+              await sendMessage();
+          }
+          pendingMessages[d.user] = [];
+      }
+
+      if (currentChat === d.user) {
+          document.querySelector('.send-btn').disabled = false;
+      }
+
+      } catch (err) {
+          console.error("key_response failed:", err);
+          return;
+      }
     }
-    }
+  //add new type
+  if (d.type === "history") {
+      const userId = d.with;
+      chatHistories[userId] = [];
 
-    trustedFingerprints[d.user] = fingerprint;
+      d.messages.forEach(m => {
+          chatHistories[userId].push({kind: m.type,  from: m.sender,  content: m.content,  filename: m.filename,   size: m.size,    time: m.timestamp});
+      });
 
-    const raw_Key = await crypto.subtle.decrypt( {name:"RSA-OAEP"}, RSA_Key_Pair.privateKey, encrypted_Key);
-
-    chat_AES_Keys[d.user] = await crypto.subtle.importKey(
-        "raw", raw_Key,
-        {name:"AES-GCM"},
-        false,
-        ["encrypt","decrypt"]
-    );
-
-    //flush queued messages
-    if (pendingMessages[d.user] && pendingMessages[d.user].length > 0) {
-        for (const mess of pendingMessages[d.user]) {
-            document.getElementById('msg-input').value = mess;
-            await sendMessage();
-        }
-        pendingMessages[d.user] = [];
-    }
-
-    //re-enable the send button
-    if (currentChat === d.user) {
-      document.querySelector('.send-btn').disabled = false;
-}
-
-    console.log("AES key stored for:", d.user);
-    console.log("Current chat:", currentChat);
-
-    return;
-}
-
-//add new type
-if (d.type === "history") {
-    const userId = d.with;
-    chatHistories[userId] = [];
-
-    d.messages.forEach(m => {
-        chatHistories[userId].push({kind: m.type,  from: m.sender,  content: m.content,  filename: m.filename,   size: m.size,    time: m.timestamp});
-    });
-
-    if (currentChat === userId) {
-        openChat(userId); // re-render UI
-    }
-    return;
-}
+      if (currentChat === userId) {
+          openChat(userId); // re-render UI
+      }
+      return;
+  }
 }
 
 // ── ENTER APP ─────────────────────────────────────────────────────────────────
