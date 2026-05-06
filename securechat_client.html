@@ -712,6 +712,9 @@ async function handleMsg(raw){ //async to use "await" [mar13]
       console.warn("Sever's fingerprint IS MISSING :(");
       return;
     }
+
+    console.log("d.key value:", d.key);
+    console.log("d.key type:", typeof d.key);
     const encrypted_Key = Uint8Array.from(atob(d.key),c=>c.charCodeAt(0));
     //security check, MAY 1 EVE
     ;
