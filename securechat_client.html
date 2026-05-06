@@ -396,14 +396,25 @@ function connectWS(serverURL, username, passwd, connection_Type) {
             });
         };
 
-        ws.onmessage = async event => {
+        /*ws.onmessage = async event => {
           console.log("raw mess:", event.data);
           try {
             await handleMsg(event.data);
           } catch (err) {
             console.error("handleMsg crashed!", err); //TRYING TO FIND THE REASON CHAT FAIL, MAY 5 mor
           };
-        };
+        };*/
+
+        ws.onmessage = async event => {
+          console.log("onmessage fired");
+          console.log("data type:", typeof event.data);
+          console.log("is Blob:", event.data instanceof Blob);
+          try {
+              await handleMsg(event.data);
+          } catch (err) {
+              console.error("handleMsg crashed!", err);
+          }
+      };
 
         ws.onclose = (event) => {
             setConn('disconnected');
