@@ -714,13 +714,20 @@ async function handleMsg(raw){ //async to use "await" [mar13]
     }
 
     console.log("d.key value:", d.key);
-    console.log("d.key type:", typeof d.key);
-    const encrypted_Key = Uint8Array.from(atob(d.key),c=>c.charCodeAt(0));
-    //security check, MAY 1 EVE
-    ;
-    if (trustedFingerprints[d.user] && trustedFingerprints[d.user] !== fingerprint) {
-    showToast("Key fingerprint mismatch!", "error");
-    return;
+    //console.log("d.key type:", typeof d.key);
+    console.log("d.key first 50 chars:", String(d.key).substring(0, 50));
+
+    try {
+        const encrypted_Key = Uint8Array.from(atob(d.key),c=>c.charCodeAt(0));
+        //security check, MAY 1 EVE
+        if (trustedFingerprints[d.user] && trustedFingerprints[d.user] !== fingerprint) {
+          showToast("Key fingerprint mismatch!", "error");
+          return;
+        }
+    }catch (err) {
+        console.error("atob failed:", err, "| key was:", d.key);
+        return; // don't let it crash the whole handleMsg
+    }
     }
 
     trustedFingerprints[d.user] = fingerprint;
