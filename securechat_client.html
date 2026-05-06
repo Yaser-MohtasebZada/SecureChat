@@ -287,6 +287,25 @@ const RATE_LIMIT=5, RATE_WINDOW=8000;
 //let sessionToken = null; //session token MATCH with backend
 let sessionToken = localStorage.getItem("sessionToken") || null;
 
+function isAuthenticated() {
+  return typeof sessionToken === "string" && sessionToken.length > 10;
+}
+
+function safeSend(payload) {
+  if (!ws || ws.readyState !== 1) {
+    showToast("Not connected", "error");
+    return false;
+  }
+
+  if (!isAuthenticated()) {
+    showToast("Not authenticated yet", "error");
+    return false;
+  }
+
+  ws.send(JSON.stringify(payload));
+  return true;
+}
+
 function loadSessionToken() {
     const t = localStorage.getItem("sessionToken");
     if (t && t !== "undefined" && t !== "null") {
@@ -367,12 +386,12 @@ function connectWS(serverURL, username, passwd, connection_Type) {
             console.log('CONNECTED to server!');
             
             // Send auth/register immediately
-            ws.send(JSON.stringify({
+            safeSend({
               type: connection_Type === 'login' ? 'auth' : 'register',
               username: username,
               password: passwd,
               //token: sessionToken
-            }));
+            });
         };
 
         ws.onmessage = async event => {
@@ -430,7 +449,7 @@ function startHeartbeat(){
 
 function refreshOnlineUsers(){
     if(ws && ws.readyState === 1){
-        ws.send(JSON.stringify({type:'get_users'}));
+        safeSend({type:'get_users'});
     }
 }
 //setInterval(refreshOnlineUsers, 16000);//removeD, MAY 1
@@ -440,7 +459,7 @@ function startHeartbeat(){
   heartbeatTimer = setInterval(() => { 
     if(ws && ws.readyState===1){
         //ws.send(JSON.stringify({type:'ping'})); //remove the ping, MAY 2 MOR
-        ws.send(JSON.stringify({type:'get_users'})); //refresh online users
+        safeSend({type:'get_users'}); //refresh online users
     }
   }, 25000);
 }
@@ -500,7 +519,13 @@ async function handleMsg(raw){ //async to use "await" [mar13]
       startHeartbeat();
 
       //token part
-      sessionToken = d.token || d.sessionToken || null;
+      //sessionToken = d.token || d.sessionToken || null;
+      sessionToken =
+        d.token ??
+        d.session_token ??
+        d.sessionToken ??
+        null;
+      console.log("TOKEN RECEIVED:", sessionToken); //debug line
 
       if (!sessionToken) {
           console.error("Token is missing from server", d);
@@ -527,11 +552,11 @@ async function handleMsg(raw){ //async to use "await" [mar13]
 
               const pubKey = await export_Pub_Key();
 
-              ws.send(JSON.stringify({
+              safeSend({
                   type: "post_public_key",
                   key: pubKey,
                 
-              }));
+              });
 
               enterApp();
 
@@ -639,7 +664,7 @@ async function handleMsg(raw){ //async to use "await" [mar13]
 
       if(!chatHistories[senderId]) chatHistories[senderId] = [];
       //chatHistories[senderId].push({
-       //addToHistory(senderId, {kind: 'file', from: senderId, filename: d.filename, size: d.size, data: decrypted_Data, time: d.time || nowHM()});
+       //addToHistory(senderId, {kind: 'file', from: senderId, filename: d.filename, size: d.size, data: sessionToken = d.token || d.sessionToken || null;, time: d.time || nowHM()});
       addToHistory(senderId, {
         kind: 'file',
         from: senderId,
@@ -738,7 +763,7 @@ function enterApp(){
   document.getElementById('auth-screen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   document.getElementById('me-label').textContent=myUsername;
-  if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'get_users'}));
+  if(ws&&ws.readyState===1) safeSend({type:'get_users'});
 }
 
 function doLogout(){
@@ -839,18 +864,18 @@ function openChat(user) {
     }
 
     //Request encryption key
-    ws.send(JSON.stringify({
+    safeSend({
         type: "request_key",
         target_user: user
-    }));
+    });
 
     //Request history after a delay to socket synchronization
     setTimeout(() => {
         if (ws && ws.readyState === 1) {
-            ws.send(JSON.stringify({
+            safeSend({
                 type: "get_history",
                 with: user
-            }));
+            });
         }
     }, 167);
 
@@ -942,12 +967,12 @@ async function sendMessage() {
           ? sessionToken
           : null;
 
-      ws.send(JSON.stringify({
+      safeSend({
           type: 'message',
           to: currentChat,
           content: encrypted_Text,
           token: safeToken
-      }));
+      });
 
     } 
     else {
@@ -1046,14 +1071,14 @@ async function handleFileSelect(e){
     let encryption_Key = chat_AES_Keys[currentChat];
 
     if(encryption_Key){ base_64 = await encrypt_AES(encryption_Key, base_64);}
-    ws.send(JSON.stringify({
+    safeSend({
       type:'file', to:currentChat, filename:selected_File.name, //missing token, fixed MAY 5 MOR
       size:selected_File.size, data:base_64, 
       token: (typeof sessionToken === "string" && sessionToken.length > 0)
         ? sessionToken
         : null
 
-    })); 
+    }); 
 
     
 
@@ -1129,7 +1154,7 @@ function onTyping(){
 
   lastTypingSent = now;
 
-  ws.send(JSON.stringify({ type:'typing', to:currentChat}));
+  safeSend({ type:'typing', to:currentChat});
 }
 
 function showTyping(from){
