@@ -259,6 +259,9 @@ function removeClient(ws) {
     const user = clients_connected_dict.get(ws);
     clients_connected_dict.delete(ws);
 
+    if (user && ws.token && session_tokens[user]) {
+    session_tokens[user].delete(ws.token);
+}
     if (user) {
         wss.clients.forEach(c => {
             if (c.readyState === WebSocket.OPEN) {
@@ -484,10 +487,23 @@ wss.on("connection", (ws) => {
                 delete failed_attempts_dict[username];
 
                 //ws.send(JSON.stringify({ type: "auth_success" }));
-                const token = crypto.randomBytes(16).toString("hex");
-                session_tokens[username] = token;
+                //const token = crypto.randomBytes(16).toString("hex");
+                //session_tokens[username] = token;
 
-                ws.send(JSON.stringify({ type: "auth_success", token, debug: "token is pased through" }));
+                //ws.send(JSON.stringify({ type: "auth_success", token, debug: "token is pased through" }));
+                const token = crypto.randomBytes(16).toString("hex");
+
+                //initialize set if not exist
+                if (!session_tokens[username]) {
+                    session_tokens[username] = new Set();
+                }
+
+                //store token
+                session_tokens[username].add(token);
+
+                //attach to socket 
+                ws.token = token;
+                ws.send(JSON.stringify({ type: "auth_success", token }));
 
                 //notify all connected users
                 wss.clients.forEach(c => {
@@ -629,15 +645,32 @@ wss.on("connection", (ws) => {
             
             //token debug log - MAY 5 MOR
             console.log("token debuging:");
-            console.log("server token:", session_tokens[username]);
+            //console.log("server token:", session_tokens[username]);
+            console.log("server tokens:", [...(session_tokens[username] || [])]);
             console.log("client token:", token);
             
             //test username mismatch case
             console.log("username lookup:", target);
             console.log("username used to connected:", Array.from(clients_connected_dict.values()));
-            if (!username || session_tokens[username] !== token) return;
+            //if (!username || session_tokens[username] !== token) return;
+            
+            if (!username) {
+                console.log("No username bound to this socket");
+                return;
+            }
+            
+            if (!session_tokens[username]?.has(token)) {
+                console.log("DROP: invalid token");
+                return;
+            }
+
+            //if (session_tokens[username] !== token) { //removed old-style system
+            //    console.log("token mismatched");
+            //    return;
+            //}
 
             //if (!allowed_to_send(username)) return; update for clearer messgae on UI
+            //rate limting
             if (!allowed_to_send(username)) {
                 ws.send(JSON.stringify({
                     type: "rate_limit",
@@ -664,7 +697,7 @@ wss.on("connection", (ws) => {
                         type: "message",
                         from: username,
                         content: data.content,
-                        token: session_tokens[username], //found the issues, missing this all the time, NOON MAY 5
+                        token: token, //found the issues, missing this all the time, NOON MAY 5
                         time: getTimeString()
                     }));
                 }
@@ -700,7 +733,11 @@ wss.on("connection", (ws) => {
         }*/
 
         if (type === "file") {
-            if (!username || session_tokens[username] !== data.token) return;
+            //if (!username || session_tokens[username] !== data.token) return;
+            if (!username || !session_tokens[username]?.has(data.token)) {
+                console.log("file is dropped: invalid token");
+                return;
+            }
             const target = data.to;
 
             try {

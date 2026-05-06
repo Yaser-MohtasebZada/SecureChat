@@ -284,7 +284,8 @@ let chatHistories={}, onlineUsers=new Set(), unreadCounts={};
 let msgTimestamps=[], reconnTimer=null, heartbeatTimer=null;
 let typingTimeout=null, pendingAuth=null;
 const RATE_LIMIT=5, RATE_WINDOW=8000;
-let sessionToken = null; //session token MATCH with backend
+//let sessionToken = null; //session token MATCH with backend
+let sessionToken = localStorage.getItem("sessionToken") || null;
 
 const EMOJIS=['😀','😂','😆','🥰','😎','🤔','😢', '🧐', //add the :monocle: lol
   '❤️','💔','🔥','💯','👍','👎',
@@ -359,7 +360,7 @@ function connectWS(serverURL, username, passwd, connection_Type) {
               type: connection_Type === 'login' ? 'auth' : 'register',
               username: username,
               password: passwd,
-              token: sessionToken
+              //token: sessionToken
             }));
         };
 
@@ -488,18 +489,17 @@ async function handleMsg(raw){ //async to use "await" [mar13]
       startHeartbeat();
 
       //token part
-      if (d.token) {
-        sessionToken = d.token;
-        console.log("Session token:", sessionToken);
-      } else {
-          console.warn("No token in auth_success!", d);
-      }
+      sessionToken = d.token || d.sessionToken || null;
 
       if (!sessionToken) {
-          console.warn("Token from server is missing!", d);
+          console.error("Token is missing from server", d);
+      } else {
+          console.log("Token stored:", sessionToken);
+
+          //persistence token
+          localStorage.setItem("sessionToken", sessionToken);
       }
 
-      //resolve loging
       if (pendingAuth) {
           pendingAuth.resolve();
           pendingAuth = null;
@@ -720,6 +720,7 @@ function enterApp(){
 }
 
 function doLogout(){
+  localStorage.removeItem("sessionToken");//clear session token, MAY 5 EVEN
   clearInterval(heartbeatTimer); clearTimeout(reconnTimer);
   if(ws){try{ws.close();}catch(e){}}
   ws=null; chatHistories={}; onlineUsers=new Set(); unreadCounts={}; currentChat=null;
@@ -758,7 +759,7 @@ function renderUserList(){
   });
 }
 
-function openChat(user){
+/*function openChat(user){
   currentChat = user;
 
   //prevention method MAY 1
@@ -805,10 +806,75 @@ function openChat(user){
   scrollBottom();
   document.getElementById('msg-input').focus();
 }
+*/
+
+function openChat(user) {
+    currentChat = user;
+
+    if (!ws || ws.readyState !== 1) {
+        showToast("Not connected to server", "error");
+        return;
+    }
+
+    //Request encryption key
+    ws.send(JSON.stringify({
+        type: "request_key",
+        target_user: user
+    }));
+
+    //Request history after a delay to socket synchronization
+    setTimeout(() => {
+        if (ws && ws.readyState === 1) {
+            ws.send(JSON.stringify({
+                type: "get_history",
+                with: user
+            }));
+        }
+    }, 167);
+
+    //Disable sending until the key is ready
+    const sendBtn = document.querySelector('.send-btn');
+    if (sendBtn) {
+        sendBtn.disabled = true;
+    }
+
+    unreadCounts[user] = 0;
+    renderUserList();
+
+    document.getElementById('no-chat').classList.add('hidden');
+    document.getElementById('active-chat').classList.remove('hidden');
+    document.getElementById('topbar-name').textContent = user;
+    const online = onlineUsers.has(user);
+    const dot = document.getElementById('topbar-dot');
+    dot.style.background = online ? 'var(--accent)' : 'var(--muted)';
+    dot.style.boxShadow = online ? '0 0 8px var(--accent)' : 'none';
+    document.getElementById('topbar-status').textContent = online ? 'Online' : 'Offline';
+    
+    const msgs = document.getElementById('messages'); 
+    msgs.innerHTML = '';
+    
+    (chatHistories[user] || []).forEach(m => {
+        if (m.kind === 'text') appendMsg(m.from, m.content, m.from === myUsername, m.time);
+        else if (m.kind === 'file') {
+            if (m.from === myUsername) appendFileSent(m.filename, m.size, m.data, m.time);
+            else appendFileReceived(m.from, m.filename, m.size, m.data, m.time);
+        } else if (m.kind === 'system') appendSystemMsg(m.content);
+    });
+    
+    scrollBottom();
+    document.getElementById('msg-input').focus();
+}
 
 //message updated [MAR 13]
 async function sendMessage() {
     if (!currentChat) return;
+
+    //if missing token, MAY 5 EVE
+    if (!sessionToken) {
+        showToast("Session expired!! Please log in again.", "error");
+        console.error("Token is missing");
+        return;
+    }
 
     const chat_Input = document.getElementById('msg-input');
     let plain_Text = chat_Input.value.trim();
@@ -844,6 +910,7 @@ async function sendMessage() {
       return;
     }
 
+    console.log("Message now sending with token:", sessionToken);
     //sending to sever
     if (ws && ws.readyState === 1) {
         ws.send(JSON.stringify({
