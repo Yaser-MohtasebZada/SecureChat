@@ -921,8 +921,9 @@ function openChat(user) {
     document.getElementById('msg-input').focus();
 }
 
+
 //message updated [MAR 13]
-async function sendMessage() {
+/*async function sendMessage() {
     if (!currentChat) return;
 
     //if missing token, MAY 5 EVE
@@ -1005,6 +1006,85 @@ async function sendMessage() {
 
     //clear input
     chat_Input.value= '';
+    autoResize(chat_Input);
+}
+*/
+async function sendMessage() {
+    if (!currentChat) return;
+
+    //pull token from localStorage
+    const storedToken = localStorage.getItem("sessionToken");
+
+    if (!storedToken || storedToken === "undefined" || storedToken === "null") {
+        showToast("Session invalid. Please relogin.", "error");
+        doLogout();
+        return;
+    }
+
+    const chat_Input = document.getElementById('msg-input');
+    let plain_Text = chat_Input.value.trim();
+    if (!plain_Text) return;
+
+    //Check rate limiting requirements
+    const now2 = Date.now();
+    msgTimestamps = msgTimestamps.filter(t => now2 - t < RATE_WINDOW);
+    if (msgTimestamps.length >= RATE_LIMIT) {
+        document.getElementById('rate-warn').textContent = 'RATE LIMIT: slow down!';
+        setTimeout(() => { document.getElementById('rate-warn').textContent = ''; }, 2500);
+        return;
+    }
+    msgTimestamps.push(now2);
+
+    //Message encryption process
+    let encrypted_Text = plain_Text;
+    const key = chat_AES_Keys[currentChat];
+    if (!key) {
+        showToast("Secure channel chat is NOT ready. Message is queued.", "warn");
+        if (!pendingMessages[currentChat]) pendingMessages[currentChat] = [];
+        pendingMessages[currentChat].push(plain_Text);
+        return;
+    }
+
+    try {
+        encrypted_Text = await encrypt_AES(key, plain_Text);
+    } catch (err) {
+        showToast("Encryption error!", "error");
+        return;
+    }
+
+    console.log("Message now sending with token:", storedToken);
+
+    //send the payload with the token at the root level
+    if (ws && ws.readyState === 1) {
+      console.log("storedToken at send time:", localStorage.getItem("sessionToken"));
+      console.log("safeSend payload:", JSON.stringify({type:'message', token: storedToken})); //debug codes
+        safeSend({
+            type: 'message',
+            to: currentChat,
+            content: encrypted_Text,
+            token: storedToken //bind the stored token
+        });
+    } else {
+        showToast('Not connected to server!!', 'warn');
+        return;
+    }
+
+    //update chat history
+    const timestamp = nowHM();
+    if (!chatHistories[currentChat]) chatHistories[currentChat] = [];
+    chatHistories[currentChat].push({
+        kind: 'text',
+        from: myUsername,
+        content: plain_Text,
+        time: timestamp
+    });
+
+    //rendering message
+    appendMsg(myUsername, plain_Text, true, timestamp);
+    scrollBottom();
+
+    //clear input
+    chat_Input.value = '';
     autoResize(chat_Input);
 }
 
