@@ -762,6 +762,10 @@ async function handleMsg(raw){ //async to use "await" [mar13]
           "raw", raw_Key, {name: "AES-GCM"}, false, ["encrypt", "decrypt"]
       );
 
+      console.log("AES key stored for:", d.user);
+      console.log("AES key object:", chat_AES_Keys[d.user]);
+      console.log("All AES keys:", Object.keys(chat_AES_Keys));
+
       if (pendingMessages[d.user]?.length > 0) {
           for (const mess of pendingMessages[d.user]) {
               document.getElementById('msg-input').value = mess;
@@ -1038,6 +1042,7 @@ function openChat(user) {
 }
 */
 async function sendMessage() {
+    console.log("AES key available for", currentChat, ":", !!chat_AES_Keys[currentChat]);
     if (!currentChat) return;
 
     //pull token from localStorage
