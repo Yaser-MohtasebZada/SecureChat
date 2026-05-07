@@ -646,19 +646,16 @@ wss.on("connection", (ws) => {
             const target_user = data.target_user;
             const requester = clients_connected_dict.get(ws);
 
-            // Get the REQUESTER's public key to encrypt the AES key with
             const requesterPubKey = clients_p_keys[requester];
             const fingerprint = public_key_fingerprints[target_user];
 
             if (!requesterPubKey || !fingerprint) return;
 
             try {
-                //import requester public key
                 const pemBody = requesterPubKey
                     .replace(/-----BEGIN PUBLIC KEY-----/, '')
                     .replace(/-----END PUBLIC KEY-----/, '')
                     .replace(/\s+/g, '');
-                //const keyBuffer = Uint8Array.from(atob(pemBody), c => c.charCodeAt(0));
                 const keyBuffer = Buffer.from(pemBody, 'base64');
 
                 const importedKey = await crypto_subtle.importKey(
@@ -667,29 +664,58 @@ wss.on("connection", (ws) => {
                     false, ["encrypt"]
                 );
 
-                //generate AES key
                 const aesKey = await crypto_subtle.generateKey(
                     { name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]
                 );
 
-                //AES TO RAW
                 const rawAES = await crypto_subtle.exportKey("raw", aesKey);
 
-                //encrypt AES key by using requester's RSA public key
                 const encryptedAES = await crypto_subtle.encrypt(
                     { name: "RSA-OAEP" }, importedKey, rawAES
                 );
 
-                //send encrypted AES key to requester
-                //const encryptedB64 = btoa(String.fromCharCode(...new Uint8Array(encryptedAES)));
                 const encryptedB64 = Buffer.from(new Uint8Array(encryptedAES)).toString('base64');
 
+                // send to requester
                 ws.send(JSON.stringify({
                     type: "key_response",
                     user: target_user,
                     key: encryptedB64,
                     fingerprint: fingerprint
                 }));
+
+                // send same AES key to target user, encrypted with their public key
+                const targetPubKey = clients_p_keys[target_user];
+                if (targetPubKey) {
+                    const targetPemBody = targetPubKey
+                        .replace(/-----BEGIN PUBLIC KEY-----/, '')
+                        .replace(/-----END PUBLIC KEY-----/, '')
+                        .replace(/\s+/g, '');
+                    const targetKeyBuffer = Buffer.from(targetPemBody, 'base64');
+
+                    const targetImportedKey = await crypto_subtle.importKey(
+                        "spki", targetKeyBuffer,
+                        { name: "RSA-OAEP", hash: "SHA-256" },
+                        false, ["encrypt"]
+                    );
+
+                    const encryptedAESforTarget = await crypto_subtle.encrypt(
+                        { name: "RSA-OAEP" }, targetImportedKey, rawAES
+                    );
+
+                    const encryptedB64forTarget = Buffer.from(new Uint8Array(encryptedAESforTarget)).toString('base64');
+
+                    wss.clients.forEach(c => {
+                        if (clients_connected_dict.get(c) === target_user) {
+                            c.send(JSON.stringify({
+                                type: "key_response",
+                                user: requester,
+                                key: encryptedB64forTarget,
+                                fingerprint: public_key_fingerprints[requester]
+                            }));
+                        }
+                    });
+                }
 
             } catch (err) {
                 console.log("Key exchange error:", err);
