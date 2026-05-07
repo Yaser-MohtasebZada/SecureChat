@@ -705,6 +705,7 @@ wss.on("connection", (ws) => {
 
                     const encryptedB64forTarget = Buffer.from(new Uint8Array(encryptedAESforTarget)).toString('base64');
 
+                    //send to target user
                     wss.clients.forEach(c => {
                         if (clients_connected_dict.get(c) === target_user) {
                             c.send(JSON.stringify({
@@ -715,6 +716,23 @@ wss.on("connection", (ws) => {
                             }));
                         }
                     });
+
+                    // save both encrypted keys to DB
+                    try {
+                        const pair = [requester, target_user].sort();
+                        await db.promise().query(
+                            `INSERT INTO session_keys (user1, user2, encrypted_key_for_user1, encrypted_key_for_user2)
+                            VALUES (?, ?, ?, ?)`,
+                            [
+                                pair[0], pair[1],
+                                pair[0] === requester ? encryptedB64 : encryptedB64forTarget,
+                                pair[0] === requester ? encryptedB64forTarget : encryptedB64
+                            ]
+                        );
+                        console.log(`[SESSION KEY SAVED] for pair: ${pair[0]} / ${pair[1]}`);
+                    } catch (err) {
+                        console.log("Session key save error:", err);
+                    }
                 }
 
             } catch (err) {
@@ -878,10 +896,27 @@ wss.on("connection", (ws) => {
                     [firstUser, secondUser, secondUser, firstUser]
                 );
 
+                //fetch the most recent saved session key for this pair
+                const pair = [firstUser, secondUser].sort();
+                const [keyRows] = await db.promise().query(
+                    `SELECT * FROM session_keys 
+                    WHERE user1=? AND user2=? 
+                    ORDER BY created_at DESC LIMIT 1`,
+                    [pair[0], pair[1]]
+                );
+
+                let encryptedKeyForMe = null;
+                if (keyRows.length > 0) {
+                    encryptedKeyForMe = pair[0] === firstUser
+                        ? keyRows[0].encrypted_key_for_user1
+                        : keyRows[0].encrypted_key_for_user2;
+                }
+
                 ws.send(JSON.stringify({
                     type: "history",
                     with: secondUser,
-                    messages: rows
+                    messages: rows,
+                    session_key: encryptedKeyForMe //null if no history key saved yet
                 }));
 
             } catch (err) {
