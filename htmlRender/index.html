@@ -385,7 +385,7 @@ function connectWS(serverURL, username, passwd, connection_Type) {
 
         pendingAuth = { resolve, reject };
 
-        ws.onopen = async () => {
+        /*ws.onopen = async () => {
             console.log('CONNECTED to server!');
             
             // Send auth/register immediately
@@ -395,6 +395,15 @@ function connectWS(serverURL, username, passwd, connection_Type) {
               password: passwd,
               //token: sessionToken
             });
+        };*/
+        ws.onopen = async () => {
+          console.log('CONNECTED to server!');
+          //use ws.send directly, no token yet at this point
+          ws.send(JSON.stringify({
+              type: connection_Type === 'login' ? 'auth' : 'register',
+              username: username,
+              password: passwd,
+          }));
         };
 
         /*ws.onmessage = async event => {
