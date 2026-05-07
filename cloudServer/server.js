@@ -47,7 +47,7 @@ const mysql = require("mysql2"); //APR 30 EVE: To test Database on Infinity free
 const express = require("express");
 const app = express();
 app.use(express.json({ limit: "23mb" }));
-app.use(express.static('htmlRender')); //CACHE ISSUES MAKE INFINITY FREE IMPOSSIBLE TO TEST, MAY 6 EVE
+app.use(express.static(path.join(__dirname, '../htmlRender'))); //CACHE ISSUES MAKE INFINITY FREE IMPOSSIBLE TO TEST, MAY 6 EVE
 
 
 const server = require("http").createServer(app)
@@ -353,9 +353,10 @@ app.get("/file/:name", async (req, res) => {
 
 
 //debug and submission proof, MAY 2 EVE
+/*move front end to Render, now dont need anymore MAY 6 EVE
 app.get("/", (req, res) => {
     res.send("SecureChat backend is RUNNING!!!");
-});
+});*/
 
 app.get("/healthy", (req, res) => {
     res.json({
