@@ -1405,7 +1405,7 @@ async function renderHistory(userId, aesKey) {
             let text = m.content;
             if (aesKey && text) {
                 try { text = await decrypt_AES(aesKey, text); }
-                catch(e) { text = '[could not decrypt]'; }
+                catch(e) { text = '[E2EE encryption protect you!]'; }
             }
             appendMsg(m.from, text, m.from === myUsername, m.time);
         } else if (m.kind === 'file') {
