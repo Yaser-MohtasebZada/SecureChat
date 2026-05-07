@@ -784,7 +784,7 @@ async function handleMsg(raw){ //async to use "await" [mar13]
       }
     }
   //add new type
-  if (d.type === "history") {
+  /*if (d.type === "history") {
       const userId = d.with;
       chatHistories[userId] = [];
 
@@ -794,6 +794,28 @@ async function handleMsg(raw){ //async to use "await" [mar13]
 
       if (currentChat === userId) {
           openChat(userId); // re-render UI
+      }
+      return;
+  }*/
+  if (d.type === "history") {
+      const userId = d.with;
+      chatHistories[userId] = [];
+
+      d.messages.forEach(m => {
+          chatHistories[userId].push({kind: m.type, from: m.sender, content: m.content, filename: m.filename, size: m.size, time: m.timestamp});
+      });
+
+      if (currentChat === userId) {
+          const msgs = document.getElementById('messages');
+          msgs.innerHTML = '';
+          (chatHistories[userId] || []).forEach(m => {
+              if (m.kind === 'text') appendMsg(m.from, m.content, m.from === myUsername, m.time);
+              else if (m.kind === 'file') {
+                  if (m.from === myUsername) appendFileSent(m.filename, m.size, m.data, m.time);
+                  else appendFileReceived(m.from, m.filename, m.size, m.data, m.time);
+              } else if (m.kind === 'system') appendSystemMsg(m.content);
+          });
+          scrollBottom();
       }
       return;
   }
