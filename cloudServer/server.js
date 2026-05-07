@@ -785,7 +785,7 @@ wss.on("connection", (ws) => {
                         from: username,
                         content: data.content,
                         token: token, //found the issues, missing this all the time, NOON MAY 5
-                        time: getTimeString()
+                       // time: getTimeString() fix time mismatch, MAY 6 EVE let client generate the time
                     }));
                 }
             });
