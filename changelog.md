@@ -392,3 +392,13 @@ CPSC 455 - GROUP 3 - SPRING 2026
 ## Planned
 - Text not went through. Fix it
 
+# 5 MAY 2026 MOR - NOON
+## Progress
+- Trying to fix the chat issues - FAIL
+
+# 5 MAY 2026 EVE
+## Progress
+- Trying to fix the chat issues - have to wait the Infinity Free to clear cache
+- Never update the file in Infinity Free is the main reason.
+
+
