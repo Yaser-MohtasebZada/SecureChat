@@ -401,4 +401,11 @@ CPSC 455 - GROUP 3 - SPRING 2026
 - Trying to fix the chat issues - have to wait the Infinity Free to clear cache
 - Never update the file in Infinity Free is the main reason.
 
+# 6 MAY 2026 EVE
+## Progress
+- Infinity Free not even clean the cache even after around 21-23 hours passed.
+- With the situation of the project, moved the front end back to Render.
+- Fixed chat issues and the mismatch in time range
+- Create and used UptimeRobot.
+
 

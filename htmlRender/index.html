@@ -1206,9 +1206,22 @@ function toggleEmoji(){ document.getElementById('emoji-panel').classList.toggle(
  // ── FILE TRANSFER ─────────────────────────────────────────────────────────────
 function openFilePicker(){ if(!currentChat){showToast('Select a user first','warn');return;} document.getElementById('file-input').click(); }
 async function handleFileSelect(e){
+  const allowed_types = ['image/jpeg','image/png','image/gif','application/pdf','text/plain'];
+  const max_size = 10 * 1024 * 1024; // 10MB
   const selected_File = e.target.files[0];
   if(!selected_File)
     return;
+  
+  if (selected_File.size > max_size) {
+      showToast("File too large (max 10MB)", "error");
+      return;
+  }
+  if (!allowed_types.includes(selected_File.type)) {
+      showToast("File type not allowed", "warn");
+      return;
+  }
+  
+  
   const file_Reader = new FileReader();
   file_Reader.onload= async ev =>{
     //const b64=ev.target.result.split(',')[1];
