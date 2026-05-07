@@ -39,7 +39,8 @@ const WebSocket = require("ws");
 const fs = require("fs");
 const path = require("path");
 const bcrypt = require("bcrypt");
-const crypto = require("crypto");
+const { webcrypto } = require("crypto");
+const crypto_subtle = webcrypto.subtle;
 const glob = require("glob"); // MAR 15 EVE: To fix the numbering session error after TURN OFF Server
 const mysql = require("mysql2"); //APR 30 EVE: To test Database on Infinity free, using mysql2 library
 
@@ -627,7 +628,7 @@ wss.on("connection", (ws) => {
         }
 
         //key request
-        if (type === "request_key") {
+        /*if (type === "request_key") {
             const target_user= data.target_user;
 
             const PUBkey = clients_p_keys[target_user];
@@ -637,6 +638,62 @@ wss.on("connection", (ws) => {
                 ws.send(JSON.stringify({
                     type: "key_response", user: target_user, key: PUBkey,fingerprint: fingerprint }));
             }
+            return;
+        }*/
+
+        if (type === "request_key") {
+            const target_user = data.target_user;
+            const requester = clients_connected_dict.get(ws);
+
+            // Get the REQUESTER's public key to encrypt the AES key with
+            const requesterPubKey = clients_p_keys[requester];
+            const fingerprint = public_key_fingerprints[target_user];
+
+            if (!requesterPubKey || !fingerprint) return;
+
+            try {
+                //import requester public key
+                const pemBody = requesterPubKey
+                    .replace(/-----BEGIN PUBLIC KEY-----/, '')
+                    .replace(/-----END PUBLIC KEY-----/, '')
+                    .replace(/\s+/g, '');
+                //const keyBuffer = Uint8Array.from(atob(pemBody), c => c.charCodeAt(0));
+                const keyBuffer = Buffer.from(pemBody, 'base64');
+
+                const importedKey = await crypto_subtle.importKey(
+                    "spki", keyBuffer,
+                    { name: "RSA-OAEP", hash: "SHA-256" },
+                    false, ["encrypt"]
+                );
+
+                //generate AES key
+                const aesKey = await crypto_subtle.generateKey(
+                    { name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]
+                );
+
+                //AES TO RAW
+                const rawAES = await crypto_subtle.exportKey("raw", aesKey);
+
+                //encrypt AES key by using requester's RSA public key
+                const encryptedAES = await crypto_subtle.encrypt(
+                    { name: "RSA-OAEP" }, importedKey, rawAES
+                );
+
+                //send encrypted AES key to requester
+                //const encryptedB64 = btoa(String.fromCharCode(...new Uint8Array(encryptedAES)));
+                const encryptedB64 = Buffer.from(new Uint8Array(encryptedAES)).toString('base64');
+
+                ws.send(JSON.stringify({
+                    type: "key_response",
+                    user: target_user,
+                    key: encryptedB64,
+                    fingerprint: fingerprint
+                }));
+
+            } catch (err) {
+                console.log("Key exchange error:", err);
+            }
+
             return;
         }
 
