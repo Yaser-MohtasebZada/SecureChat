@@ -685,36 +685,29 @@ async function handleMsg(raw){ //async to use "await" [mar13]
   }*/
 
   if(d.type === 'file'){
-      const senderId = d.from;
-      let decrypted_Data = d.data;
-      let session_Key = chat_AES_Keys[senderId];
+    const senderId = d.from;
+    // server now sends a Backblaze URL in d.url, not base64 in d.data
+    const fileData = d.url || d.data;
 
-      if(session_Key){
-          decrypted_Data = await decrypt_AES(session_Key, decrypted_Data);
-      }
-
-      if(!chatHistories[senderId]) chatHistories[senderId] = [];
-      //chatHistories[senderId].push({
-       //addToHistory(senderId, {kind: 'file', from: senderId, filename: d.filename, size: d.size, data: sessionToken = d.token || d.sessionToken || null;, time: d.time || nowHM()});
-      addToHistory(senderId, {
+    if(!chatHistories[senderId]) chatHistories[senderId] = [];
+    addToHistory(senderId, {
         kind: 'file',
         from: senderId,
         filename: d.filename,
         size: d.size,
-        data: decrypted_Data,
+        data: fileData,
         time: d.time || nowHM()
-      });
-       if(currentChat === senderId){
-          appendFileReceived(senderId, d.filename, d.size, decrypted_Data, d.time||nowHM());
-          scrollBottom();
-      }
-      else{
-          unreadCounts[senderId] = (unreadCounts[senderId]|| 0)+1;
-          renderUserList();
-          showToast(`File from ${senderId}: ${d.filename}`);
-      }
-
-      return;
+    });
+    if(currentChat === senderId){
+        appendFileReceived(senderId, d.filename, d.size, fileData, d.time||nowHM());
+        scrollBottom();
+    }
+    else{
+        unreadCounts[senderId] = (unreadCounts[senderId]|| 0)+1;
+        renderUserList();
+        showToast(`File from ${senderId}: ${d.filename}`);
+    }
+    return;
   }
 
   if(d.type === 'typing'){
@@ -1302,7 +1295,18 @@ function appendFileReceived(from,filename,size,b64,time){
 function fileBubble(filename,size,b64){
   const bub=document.createElement('div'); bub.className='file-bubble';
   const btn=document.createElement('button'); btn.className='file-dl'; btn.textContent='⬇ Save';
-  btn.onclick=()=>{ const a=document.createElement('a'); a.href='data:application/octet-stream;base64,'+b64; a.download=filename; a.click(); };
+  //btn.onclick=()=>{ const a=document.createElement('a'); a.href='data:application/octet-stream;base64,'+b64; a.download=filename; a.click(); };
+  btn.onclick=()=>{
+    const a=document.createElement('a');
+    // if it's a URL (from Backblaze), open directly; otherwise use base64
+    if(b64 && b64.startsWith('http')){
+      a.href=b64; a.target='_blank';
+    } else {
+      a.href='data:application/octet-stream;base64,'+b64;
+      a.download=filename;
+    }
+    a.click();
+  };
   bub.innerHTML=`<div class="file-icon">${fileIcon(filename)}</div>
     <div class="file-info"><div class="file-name">${esc(filename)}</div><div class="file-size">${fmtSize(size)}</div></div>`;
   bub.appendChild(btn); return bub;
