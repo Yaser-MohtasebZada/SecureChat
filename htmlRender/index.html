@@ -638,31 +638,34 @@ async function handleMsg(raw){ //async to use "await" [mar13]
         console.warn("Decryption process failed:", err);
         decrypted_Text = "!!!Message cannot be decrypted :(!!!";
       }
+    } else {
+      // no key yet — wait up to 3 seconds for key exchange to finish then decrypt
+      let waited = 0;
+      while (!chat_AES_Keys[senderId] && waited < 3000) {
+        await new Promise(r => setTimeout(r, 100));
+        waited += 100;
+      }
+      if (chat_AES_Keys[senderId]) {
+        try {
+          decrypted_Text = await decrypt_AES(chat_AES_Keys[senderId], decrypted_Text);
+        } catch (err) {
+          decrypted_Text = "!!!Message cannot be decrypted :(!!!";
+        }
+      }
     }
 
+    const msgTime = d.time  nowHM();
     if(!chatHistories[senderId]) chatHistories[senderId] = [];
-    //chatHistories[from].push({kind:'text', from, content:d.content, time:d.time||nowHM()});
-    //chatHistories[senderId].push({ using new helper function, MAY 1 EVE
-    addToHistory(senderId, {kind:'text', from:senderId, content:decrypted_Text, time:d.time||nowHM()});
+    addToHistory(senderId, {kind:'text', from:senderId, content:decrypted_Text, time:msgTime});
 
-    if(currentChat === senderId){ 
-      //appendMsg(from, d.content, false, d.time||nowHM()); 
-      /* MOV to above MAR 14
-      let content = d.content;
-
-      let key = chat_AES_Keys[from];
-
-      if(key){
-          content = await decrypt_AES(key,content);
-      }
-      */
-      appendMsg(senderId, decrypted_Text, false, d.time||nowHM());
-      scrollBottom(); 
-      }
-    else{ 
-      unreadCounts[senderId]=(unreadCounts[senderId]||0)+1; 
-      renderUserList(); 
-      showToast(`New message from ${senderId}: ...`); }
+    if(currentChat === senderId){
+      appendMsg(senderId, decrypted_Text, false, msgTime);
+      scrollBottom();
+    } else {
+      unreadCounts[senderId]=(unreadCounts[senderId]0)+1;
+      renderUserList();
+      showToast(New message from ${senderId});
+    }
     return;
   }
   /*
