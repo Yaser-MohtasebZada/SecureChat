@@ -1248,7 +1248,7 @@ async function handleFileSelect(e){
   const file_Reader = new FileReader();
   file_Reader.onload= async ev =>{
     //const b64=ev.target.result.split(',')[1];
-    let base_64 = file_Reader.result.split(',')[1];\
+    let base_64 = file_Reader.result.split(',')[1];
     //handle with BackBlaze
     //let encryption_Key = chat_AES_Keys[currentChat];
     //if(encryption_Key){ base_64 = await encrypt_AES(encryption_Key, base_64);}
