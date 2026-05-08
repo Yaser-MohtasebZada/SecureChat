@@ -642,7 +642,8 @@ wss.on("connection", (ws) => {
             }
             
             if (!session_tokens[username]?.has(token)) {
-                console.log("DROP: invalid token");
+                console.log("DROP: invalid token for", username, "| received:", token);
+                ws.send(JSON.stringify({ type: "auth_fail", message: "Session expired. Please re-login." }));
                 return;
             }
 

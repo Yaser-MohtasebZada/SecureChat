@@ -610,16 +610,26 @@ async function handleMsg(raw){ //async to use "await" [mar13]
     return;
   }
   if(d.type === 'message'){
-    const senderId = d.from;
+    ///const senderId = d.from;
     //decrypt before storing and display
-    let decrypted_Text = d.content;
-    let decryption_Key = chat_AES_Keys[senderId];
+    //let decrypted_Text = d.content;
+    //let decryption_Key = chat_AES_Keys[senderId];
 
   
     //removed this para to get got try catch
     /*if(decryption_Key){
         decrypted_Text = await decrypt_AES(decryption_Key, decrypted_Text);
     }*/
+    const senderId = d.from;
+
+    // if we don't have their AES key yet, request it now
+    if (!chat_AES_Keys[senderId]) {
+        safeSend({ type: "request_key", target_user: senderId });
+    }
+
+    //decrypt before storing and display
+    let decrypted_Text = d.content;
+    let decryption_Key = chat_AESKeys[senderId];
 
     if (decryption_Key) {
       try {
