@@ -654,7 +654,7 @@ async function handleMsg(raw){ //async to use "await" [mar13]
       }
     }
 
-    const msgTime = d.time  nowHM();
+    const msgTime = d.time || nowHM();
     if(!chatHistories[senderId]) chatHistories[senderId] = [];
     addToHistory(senderId, {kind:'text', from:senderId, content:decrypted_Text, time:msgTime});
 
@@ -662,9 +662,9 @@ async function handleMsg(raw){ //async to use "await" [mar13]
       appendMsg(senderId, decrypted_Text, false, msgTime);
       scrollBottom();
     } else {
-      unreadCounts[senderId]=(unreadCounts[senderId]0)+1;
+      unreadCounts[senderId]=(unreadCounts[senderId] || 0)+1;
       renderUserList();
-      showToast(New message from ${senderId});
+      showToast(`New message from ${senderId}`);
     }
     return;
   }
