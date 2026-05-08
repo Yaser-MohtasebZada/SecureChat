@@ -1268,7 +1268,9 @@ async function handleFileSelect(e){
     from:myUsername, filename:selected_File.name, size:selected_File.size,
     data:base_64, time:timestamps
     });
-    appendFileSent(selected_File.name, selected_File.size, base_64, timestamps);
+    //appendFileSent(selected_File.name, selected_File.size, base_64, timestamps);
+    appendFileSent(selected_File.name, selected_File.size, base_64, timestamps, selected_File.type);
+
     scrollBottom();
   };
 
@@ -1276,11 +1278,11 @@ async function handleFileSelect(e){
   e.target.value='';
 }
 
-function appendFileSent(filename,size,b64,time){
+function appendFileSent(filename,size,b64,time,mimetype){
   const wrap=document.createElement('div'); wrap.className='msg-wrap own';
   const meta=document.createElement('div'); meta.className='msg-meta';
   const ts=document.createElement('span'); ts.textContent=time||''; meta.appendChild(ts);
-  const bub=fileBubble(filename,size,b64);
+  const bub=fileBubble(filename,size,b64,mimetype);
   wrap.appendChild(meta); wrap.appendChild(bub);
   document.getElementById('messages').appendChild(wrap);
 }
@@ -1295,16 +1297,16 @@ function appendFileReceived(from,filename,size,b64,time){
   document.getElementById('messages').appendChild(wrap);
 }
 
-function fileBubble(filename,size,b64){
+function fileBubble(filename,size,b64,mimetype){
   const bub=document.createElement('div'); bub.className='file-bubble';
   const btn=document.createElement('button'); btn.className='file-dl'; btn.textContent='⬇ Save';
-  //btn.onclick=()=>{ const a=document.createElement('a'); a.href='data:application/octet-stream;base64,'+b64; a.download=filename; a.click(); };
   btn.onclick=()=>{
     const a=document.createElement('a');
     if(b64 && b64.startsWith('http')){
       a.href=b64; a.target='_blank';
     } else {
-      a.href='data:application/octet-stream;base64,'+b64;
+      const mime = mimetype || 'application/octet-stream';
+      a.href=`data:${mime};base64,`+b64;
       a.download=filename;
     }
     document.body.appendChild(a);
