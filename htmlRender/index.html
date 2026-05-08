@@ -288,7 +288,8 @@ let msgTimestamps=[], reconnTimer=null, heartbeatTimer=null;
 let typingTimeout=null, pendingAuth=null;
 const RATE_LIMIT=5, RATE_WINDOW=8000;
 //let sessionToken = null; //session token MATCH with backend
-let sessionToken = localStorage.getItem("sessionToken") || null;
+//let sessionToken = localStorage.getItem("sessionToken") || null;
+let sessionToken = null; 
 
 function isAuthenticated() {
   const token = sessionToken || localStorage.getItem("sessionToken");
@@ -831,6 +832,8 @@ function enterApp(){
 
 function doLogout(){
   localStorage.removeItem("sessionToken");//clear session token, MAY 5 EVEN
+  sessionToken = null;
+  
   clearInterval(heartbeatTimer); clearTimeout(reconnTimer);
   if(ws){try{ws.close();}catch(e){}}
   ws=null; chatHistories={}; onlineUsers=new Set(); unreadCounts={}; currentChat=null;

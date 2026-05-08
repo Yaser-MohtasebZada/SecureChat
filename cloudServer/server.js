@@ -449,7 +449,20 @@ wss.on("connection", (ws) => {
                     [username, hash]
                 );
 
-                ws.send(JSON.stringify({ type: "register_success" }));
+                // auto login after register
+                clients_connected_dict.set(ws, username);
+                const token = crypto.randomBytes(16).toString("hex");
+                if (!session_tokens[username]) session_tokens[username] = new Set();
+                session_tokens[username].add(token);
+                ws.token = token;
+
+                ws.send(JSON.stringify({ type: "register_success", token }));
+
+                wss.clients.forEach(c => {
+                    if (c.readyState === WebSocket.OPEN) {
+                        c.send(JSON.stringify({ type: "user_joined", username }));
+                    }
+                });
 
             } catch (ERROR) {
                 console.log("register error:", ERROR);
