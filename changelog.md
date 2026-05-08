@@ -408,4 +408,27 @@ CPSC 455 - GROUP 3 - SPRING 2026
 - Fixed chat issues and the mismatch in time range
 - Create and used UptimeRobot.
 
+# 7 MAY 2026 MOR
+## Progress
+- Debugs and clean up
 
+## Planned
+- Set the video demo recording right after class finnished, as booked.
+
+# 7 MAY 2026 EVE
+## Progress
+- Found and fix the file sending error
+- Decided that user is never can access the chat history
+- Final debugs and comments on the chat block
+- Postponed the video recording after the class is cancelled
+- Plan to resume video recording through Zoom as a best option for alternative method to record
+- Decided to reserver library room for tommorow recording to enhance and ensure the quality of video recording
+- Discuss and decide the demo flows for the video.
+
+## Planned
+- Meeting in person tommorow to recording the video, discuss about the realeased on Git
+- Prepare changelog and co-approve the read me documents.
+
+# 7 MAY 2026 MOR
+## Progress
+- Decided and approved final demo flows.

@@ -456,6 +456,7 @@ function connectWS(serverURL, username, passwd, connection_Type) {
     });
 }
 
+//step 15a
 function scheduleReconnect(){
   clearTimeout(reconnTimer);
   reconnTimer=setTimeout(()=>{
@@ -1405,6 +1406,7 @@ async function export_Pub_Key() {
     return pem_formated;
 }
 
+//STEP 11 DEMO MAY 8
 async function encrypt_AES(crypt_Key, mess) {
     const iv = crypto.getRandomValues(new Uint8Array(12));
     const encoded_Text = new TextEncoder().encode(mess);
@@ -1426,6 +1428,7 @@ async function decrypt_AES(crypt_Key, base64) {
 }
 //new TextDecoder().decode(plain);
 
+//STEP 14B 
 async function renderHistory(userId, aesKeys) {
     //accept single key or array of keys
     const keys = Array.isArray(aesKeys) ? aesKeys : (aesKeys ? [aesKeys] : []);

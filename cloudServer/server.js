@@ -48,15 +48,20 @@ let active_chat_pairs = new Set();
 let chat_sessions = {}; // MAR 10 eve: needed for the new chatfile system
 let aes_session_keys = {};
 let heartbeat_failures = {};
-let failed_attempts_dict = {}; // MAR 7: Block login
+
+
 let user_timestamp_dict = {}; // rate limit
 let public_key_fingerprints = {}; //MAY 1, this one to update the hashing system
 
+//Step 8b, this is the rate limits
 const mess_limit = 5;
 const time_range = 8;
 
+//STEP 5 DEMO: after three failed attemps, block 10 seconds, track by failed_attempts_dict 
+let failed_attempts_dict = {}; // MAR 7: Block login
 const max_attempts_allowed = 3;
 const block_login_time = 10;
+
 const session_tokens = {}; //add session token ID. MAY 1 EVE
 
 //testBB
@@ -87,6 +92,7 @@ async function BBupload(filename, buffer, mimetype) {
 }
 
 //Add new fuction to record directly into databased MAY 1 EVE
+//STEP 13 DEMO
 async function saveMess(sender, receiver, content, type, filename = null, size = null) {
     try {
         await db.promise().query(
@@ -172,6 +178,7 @@ function check_pass(plain_pass, hashed) {
     return bcrypt.compareSync(plain_pass, hashed);
 }
 
+//STEP 3 DEMO VIDEO MAY 8
 function validate_password(password) {
     if (password.length < 8) return [false, "8 characters password is required"];
     if (!/[A-Z]/.test(password)) return [false, "Uppercase letter required"];
@@ -180,7 +187,7 @@ function validate_password(password) {
     return [true, "OK"];
 }
 
-//RATE LIMIT
+//RATE LIMIT, STEP 8a DEMO
 function allowed_to_send(username) {
     const now = getTimeNowSeconds();
     if (!user_timestamp_dict[username]) user_timestamp_dict[username] = [];
@@ -698,6 +705,7 @@ wss.on("connection", (ws) => {
             });
         }
 
+        //step 14a
         if (type === "get_history") {
             const firstUser = username;
             const secondUser = data.with;
