@@ -1,5 +1,6 @@
 // SecureChat Node Ver
 // APR 26: Porting from Python. Python time is not supported, so new time functions created.
+// Tien Dat Le, Yaser Mohtaseb Zada, Karla Ramirez
 
 const { S3Client, PutObjectCommand, GetObjectCommand } = require("@aws-sdk/client-s3"); //FIXED, MAY 2 MOR
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");

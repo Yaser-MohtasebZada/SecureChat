@@ -1,3 +1,5 @@
+<!--Yaser Mohtaseb Zada, Tien Dat Le, Karla Ramirez-->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1299,14 +1301,15 @@ function fileBubble(filename,size,b64){
   //btn.onclick=()=>{ const a=document.createElement('a'); a.href='data:application/octet-stream;base64,'+b64; a.download=filename; a.click(); };
   btn.onclick=()=>{
     const a=document.createElement('a');
-    // if it's a URL (from Backblaze), open directly; otherwise use base64
     if(b64 && b64.startsWith('http')){
       a.href=b64; a.target='_blank';
     } else {
       a.href='data:application/octet-stream;base64,'+b64;
       a.download=filename;
     }
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
   };
   bub.innerHTML=`<div class="file-icon">${fileIcon(filename)}</div>
     <div class="file-info"><div class="file-name">${esc(filename)}</div><div class="file-size">${fmtSize(size)}</div></div>`;
