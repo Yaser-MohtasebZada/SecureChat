@@ -66,7 +66,7 @@ async function testBB() {
 
 testBB();
 
-//Using BackBlaze [BB]
+//Using BackBlaze [BB]; update private bucket
 async function BBupload(filename, buffer, mimetype) {
     const key = `securechat/${Date.now()}_${filename}`;
 
@@ -77,7 +77,13 @@ async function BBupload(filename, buffer, mimetype) {
         ContentType: mimetype
     }));
 
-    return `https://f003.backblazeb2.com/file/${process.env.B2_BUCKET}/${key}`;
+    // generate signed URL for private bucket (valid 1 hour)
+    const signedUrl = await getSignedUrl(s3, new GetObjectCommand({
+        Bucket: process.env.B2_BUCKET,
+        Key: key
+    }), { expiresIn: 3600 });
+
+    return signedUrl;
 }
 
 //Add new fuction to record directly into databased MAY 1 EVE
