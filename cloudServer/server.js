@@ -666,14 +666,14 @@ wss.on("connection", (ws) => {
                 const fileUrl = await BBupload(data.filename,  buffer, data.filetype || "application/octet-stream" );
 
                 // send to receiver
+              
+                const fileId = Date.now().toString();
                 wss.clients.forEach(c => {
-                    wss.clients.forEach(c => {
-                        const u = clients_connected_dict.get(c);
-                        if (u === target || u === username) {
-                            c.send(JSON.stringify({type: "file", from: username, filename: data.filename, url: fileUrl, time: getTimeString()}));
-                        }
-                    });
+                    if (clients_connected_dict.get(c) === target) {
+                        c.send(JSON.stringify({type: "file", from: username, filename: data.filename, url: fileUrl, time: getTimeString(), fileId}));
+                    }
                 });
+        
 
                 await saveMess(username, target, fileUrl, "file", data.filename);
 

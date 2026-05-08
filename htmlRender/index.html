@@ -279,6 +279,7 @@ let chat_AES_Keys = {};         // AES key of each chat user
 let my_Username = null;
 let pendingMessages = {}; //prevent mess loss when AES key not ready, MAY 1 EVE
 let trustedFingerprints = {}; //for fingerint veridication, MAY 1 EVE
+let receivedFileIds = new Set(); //de -duplicate MAY 7 EVE
 
 // ── STATE ────────
 let ws=null, myUsername='', currentChat=null, authMode='login';
@@ -691,6 +692,8 @@ async function handleMsg(raw){ //async to use "await" [mar13]
     // server now sends a Backblaze URL in d.url, not base64 in d.data
     const fileData = d.url || d.data;
     if(senderId === myUsername) return;
+    if(d.fileId && receivedFileIds.has(d.fileId)) return;
+    if(d.fileId) receivedFileIds.add(d.fileId);
     if(!chatHistories[senderId]) chatHistories[senderId] = [];
     addToHistory(senderId, {
         kind: 'file',
