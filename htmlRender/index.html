@@ -1306,7 +1306,7 @@ function fileIcon(n){
 
 function fmtSize(b){ if(!b) return ''; if(b<1024) return b+'B'; if(b<1048576) return (b/1024).toFixed(1)+'KB'; return (b/1048576).toFixed(1)+'MB'; }
 
-// ── TYPING ────────────────────────────────────────────────────────────────────
+// ── TYPING ───────
 /*function onTyping(){
   if(!currentChat||!ws||ws.readyState!==1) return;
   ws.send(JSON.stringify({type:'typing',to:currentChat}));
@@ -1331,7 +1331,7 @@ function showTyping(from){
   typingTimeout=setTimeout(()=>{document.getElementById('typing-ind').textContent='';},2500);
 }
 
-// ── UTILS ─────────────────────────────────────────────────────────────────────
+// ── UTILS ───────
 function nowHM(){ const d=new Date(); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
 function scrollBottom(){ const m=document.getElementById('messages'); m.scrollTop=m.scrollHeight; }
 function autoResize(el){ el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,120)+'px'; }

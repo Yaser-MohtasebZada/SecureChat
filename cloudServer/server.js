@@ -1,28 +1,6 @@
 // SecureChat Node Ver
 // APR 26: Porting from Python. Python time is not supported, so new time functions created.
 
-//debug MAY 3., 2026 mor
-console.log("VERSION CHECK: CLEAN MYSQL FIX 1");
-console.log("MYSQL DECLARATION TEST");
-console.log("FILE LOADED AT:", __filename);
-
-//Handling BB storage
-//import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
-//import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-
-
-//const BUCKET = "SecureChatGrp3-Files";use direct
-/* removed MAY 3 MOR
-require("dotenv").config(); //use dotenv to hide my database credential, even in testing process, APR 30 EVE
-console.log("env debug temp code");
-console.log("DB_HOST =", process.env.DB_HOST);
-console.log("DB_USER =", process.env.DB_USER);
-console.log("DB_NAME =", process.env.DB_NAME);
-console.log("DB_PORT =", process.env.DB_PORT);
-console.log("--------------");*/
-
-//handle Backblaze
-//const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3"); //start using Backblaze, MAY 2 MOR
 const { S3Client, PutObjectCommand, GetObjectCommand } = require("@aws-sdk/client-s3"); //FIXED, MAY 2 MOR
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
@@ -54,33 +32,15 @@ app.use(express.static(path.join(__dirname, '../htmlRender'))); //CACHE ISSUES M
 
 const server = require("http").createServer(app)
 
-//handle mySQL //eliminated MAY 3, MOR
-/*const db = mysql.createPool({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    port: process.env.DB_PORT || 3306
-});*/
-
-//to match with Railway URL settting, MAY 3 MOR
-//const db = mysql.createPool(process.env.MYSQL_PUBLIC_URL); failed to deploy
 if (!process.env.MYSQL_PUBLIC_URL) {
     throw new Error("MYSQL_PUBLIC_URL is missing in environment variables");
 }
-
-//const db = mysql.createPool(process.env.MYSQL_PUBLIC_URL);
-
 
 const dbUrl = new URL(process.env.MYSQL_PUBLIC_URL); 
 const db = mysql.createPool({ host: dbUrl.hostname, user: dbUrl.username, password: dbUrl.password, database: dbUrl.pathname.replace(/^\/+/, ""), port: dbUrl.port || 3306 });
 console.log("DB URL loaded:", !!process.env.MYSQL_PUBLIC_URL);
 
-
-//let registered_users = {}; remove because local storage now on MySQL
-//let clients_connected_dict = {}; // store name of client REMOVE APR 30 MOR
 let clients_connected_dict = new Map(); //test MAP for more stable access and connections
-
 let clients_p_keys = {};
 let last_pong = {}; // tracking last pong message
 let active_chat_pairs = new Set();
@@ -278,50 +238,9 @@ function removeClient(ws) {
     }
 }
 
-//USER STORAGE
-/*
-function load_users() {
-    try {
-        //return JSON.parse(fs.readFileSync("users.json", "utf8"));
-        
-    } catch {
-        return {};
-    }
-}*/
-
-/*In use upto APR 30 EVE, moved to use mysql
-function load_users() {
-    try {
-        if (!fs.existsSync("users.json")) 
-            return {};
-        return JSON.parse(fs.readFileSync("users.json", "utf8"));
-    } catch (err) {
-        console.log("User loading error:", err);
-        return {};
-    }
-}
-
-function save_users() {
-    fs.writeFileSync("users.json", JSON.stringify(registered_users, null, 2));
-}*/
-
-//registered_users = load_users(); move to server.listen //trying to fix render loading error APR 28 EVE
-
-//SERVER
-//const wss = new WebSocket.Server({ port: PORT }); no more reliable for the server to work well with Render, REMOVE APR 28 MOR
-//console.log("Server is running on port", PORT);
-//const http = require("http"); no need anymore, updated to EXPRESS, MAY 2 MOR
-
-
 //Render port - APR 28 MOR
 //const PORT = process.env.Port_Of_Server || 7777; delete APR 28
 const PORT = process.env.PORT || 7777;//move to render
-
-/*
-const server = http.createServer((req, res) => {
-    res.writeHead(200, { "Content-Type": "text/plain" });
-    res.end("SecureChat backend running");
-});*/ //updated to EXPRESS on MAY 2 MOR
 
 //BackBlaze upload and download
 app.post("/upload", async (req, res) => {
@@ -354,20 +273,12 @@ app.get("/file/:name", async (req, res) => {
 });
 
 
-//debug and submission proof, MAY 2 EVE
-/*move front end to Render, now dont need anymore MAY 6 EVE
-app.get("/", (req, res) => {
-    res.send("SecureChat backend is RUNNING!!!");
-});*/
-
 app.get("/healthy", (req, res) => {
     res.json({
         status: "ok",
         time: new Date().toISOString()
     });
 });
-
-//add to ensure about chat log filder pontentual issue,
 
 if (!fs.existsSync("chat_logs")) {
     fs.mkdirSync("chat_logs");
@@ -408,50 +319,18 @@ wss.on("connection", (ws) => {
 
     //ws.on("message", (raw) => {
     ws.on("message", async (raw) => {
-        console.log("server recieved raw:", raw.toString());
+        //console.log("server recieved raw:", raw.toString()); DEBUG ENDED MAY 7, EVE
         let data;
         try { data = JSON.parse(raw); }
         catch { return; }
 
         const type = data.type;
 
-        //AUTH
-        /*OLD AUTH UNTIL APR 30 EVE
-        if (type === "auth") {
-            username = data.username.toLowerCase();
-            const pass = data.password;
-            
-            //for debug purpose
-            console.log("login attempt:", username);
-           // console.log("user exists:", !! registered_users[username]); APR 30 EVE  No longer use the dict
-
-            if (!registered_users[username] || !check_pass(pass, registered_users[username])) {
-                ws.send(JSON.stringify({ type: "auth_fail" }));
-                return;
-            }
-
-            //clients_connected_dict[ws] = username;
-            clients_connected_dict.set(ws, username); //with the new structure, apr30 MOR
-            ws.send(JSON.stringify({ type: "auth_success" }));
-
-            // notify everyone
-            wss.clients.forEach(c => {
-                if (c.readyState === WebSocket.OPEN) {
-                    c.send(JSON.stringify({
-                        type: "user_joined",
-                        username
-                    }));
-                }
-            });
-
-            return;
-        }*/
-
         if (type === "auth") {
             username = data.username.toLowerCase();
             const pass = data.password;
 
-            console.log("Login:", username);
+            //console.log("Login:", username); debug ended may 7, eve
 
             // rate limiting
             if (!allowed_to_try_login(username)) {
@@ -491,11 +370,6 @@ wss.on("connection", (ws) => {
                 clients_connected_dict.set(ws, username);
                 delete failed_attempts_dict[username];
 
-                //ws.send(JSON.stringify({ type: "auth_success" }));
-                //const token = crypto.randomBytes(16).toString("hex");
-                //session_tokens[username] = token;
-
-                //ws.send(JSON.stringify({ type: "auth_success", token, debug: "token is pased through" }));
                 const token = crypto.randomBytes(16).toString("hex");
 
                 //initialize set if not exist
@@ -532,30 +406,6 @@ wss.on("connection", (ws) => {
 
             return;
         }
-
-        // REGISTER, up to apr 30 eve
-        /*
-        if (type === "register") {
-            const username = data.username.toLowerCase();
-            const pass = data.password;
-
-            const [valid, msg] = validate_password(pass);
-            if (!valid) {
-                ws.send(JSON.stringify({ type: "auth_fail", message: msg }));
-                return;
-            }
-
-            registered_users[username] = hash_pass(pass);
-            save_users();
-
-            //add for debug purpose, apr 30
-            console.log("registered user:", username);
-            console.log("total user:", Object.keys(registered_users));
-
-
-            ws.send(JSON.stringify({ type: "register_success" }));
-            return;
-        }*/
 
         if (type === "register") {
             const username = data.username.toLowerCase();
@@ -627,20 +477,6 @@ wss.on("connection", (ws) => {
 
             return;
         }
-
-        //key request
-        /*if (type === "request_key") {
-            const target_user= data.target_user;
-
-            const PUBkey = clients_p_keys[target_user];
-            const fingerprint = public_key_fingerprints[target_user];
-
-            if (PUBkey && fingerprint) {
-                ws.send(JSON.stringify({
-                    type: "key_response", user: target_user, key: PUBkey,fingerprint: fingerprint }));
-            }
-            return;
-        }*/
 
         if (type === "request_key") {
             const target_user = data.target_user;
@@ -748,17 +584,6 @@ wss.on("connection", (ws) => {
             const token = data.token;
             const target = data.to;
             
-            //token debug log - MAY 5 MOR
-            console.log("token debuging:");
-            //console.log("server token:", session_tokens[username]);
-            console.log("server tokens:", [...(session_tokens[username] || [])]);
-            console.log("client token:", token);
-            
-            //test username mismatch case
-            console.log("username lookup:", target);
-            console.log("username used to connected:", Array.from(clients_connected_dict.values()));
-            //if (!username || session_tokens[username] !== token) return;
-            
             if (!username) {
                 console.log("No username bound to this socket");
                 return;
@@ -769,12 +594,6 @@ wss.on("connection", (ws) => {
                 return;
             }
 
-            //if (session_tokens[username] !== token) { //removed old-style system
-            //    console.log("token mismatched");
-            //    return;
-            //}
-
-            //if (!allowed_to_send(username)) return; update for clearer messgae on UI
             //rate limting
             if (!allowed_to_send(username)) {
                 ws.send(JSON.stringify({
@@ -784,18 +603,6 @@ wss.on("connection", (ws) => {
                 return;
             }
 
-            
-
-            console.log("Message flow debugging");
-            console.log("from:", username);
-            console.log("to:", target);
-
-            wss.clients.forEach(c => {
-                const mappedUser = clients_connected_dict.get(c);
-                console.log("client:", mappedUser, "| ready:", c.readyState);
-            });
-            
-            console.log("sending token:", session_tokens[username]);
             wss.clients.forEach(c => {
                 if (clients_connected_dict.get(c) === target) {
                     c.send(JSON.stringify({
@@ -813,29 +620,6 @@ wss.on("connection", (ws) => {
             write_mess_to_log(username, target,
                 `${getTimeString()} ${username}: [encrypted]`);
         }
-
-        // FILE, using upto MOR MAY 2, REPLACED BY BACKBLAZE
-        /*
-        if (type === "file") {
-            if (!username || session_tokens[username] !== data.token) return;
-            const target = data.to;
-
-            wss.clients.forEach(c => {
-                //if (clients_connected_dict[c] === target) {
-                if (clients_connected_dict.get(c) === target){
-                    c.send(JSON.stringify({
-                        type: "file",
-                        from: username,
-                        filename: data.filename,
-                        size: data.size,
-                        data: data.data,
-                        time: getTimeString()
-                    }));
-                }
-            });
-
-        await saveMess(username, target, null, "file", data.filename, data.size);      
-        }*/
 
         if (type === "file") {
             //if (!username || session_tokens[username] !== data.token) return;
@@ -879,10 +663,6 @@ wss.on("connection", (ws) => {
             });
         }
 
-        //if (type === "ping") {
-        //    ws.send(JSON.stringify({ type: "pong" }));
-        //}
-
         if (type === "get_history") {
             const firstUser = username;
             const secondUser = data.with;
@@ -924,9 +704,6 @@ wss.on("connection", (ws) => {
             }
         }
     });
-
-    //ws.on("error", () => removeClient(ws));
-    //ws.on("close", () => removeClient(ws));
    
     //debug code MAY 4 EVE for the popup "Sever closed connection"
     ws.on("close", () => {
