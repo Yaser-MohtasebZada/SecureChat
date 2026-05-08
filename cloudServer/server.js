@@ -473,6 +473,13 @@ wss.on("connection", (ws) => {
 
             public_key_fingerprints[username] = hash_TEXT;
 
+            //forget to add to DB
+
+            await db.promise().query(
+                `UPDATE users SET public_key = ? WHERE username = ?`,
+                [PUB_key, username]
+            );
+
             console.log(`[KEY STORED] ${username} fingerprint: ${hash_TEXT}`);
 
             return;
@@ -483,9 +490,27 @@ wss.on("connection", (ws) => {
             const requester = clients_connected_dict.get(ws);
 
             const requesterPubKey = clients_p_keys[requester];
-            const fingerprint = public_key_fingerprints[target_user];
 
-            if (!requesterPubKey || !fingerprint) return;
+            //if target's public key IS NOT in memory (offline), load from DB
+            if (!clients_p_keys[target_user]) {
+                try {
+                    const [pkRows] = await db.promise().query(
+                        `SELECT public_key FROM users WHERE username = ?`,
+                        [target_user]
+                    );
+                    if (pkRows.length > 0 && pkRows[0].public_key) {
+                        clients_p_keys[target_user] = pkRows[0].public_key;
+                        const fp = crypto.createHash("sha256").update(pkRows[0].public_key).digest("hex");
+                        public_key_fingerprints[target_user] = fp;
+                    }
+                } catch(e) {
+                    console.log("Failed to load public key from DB:", e);
+                }
+            }
+
+            if (!requesterPubKey || !clients_p_keys[target_user]) return;
+            const fingerprint = public_key_fingerprints[target_user];
+            if (!fingerprint) return;
 
             try {
                 const pemBody = requesterPubKey
