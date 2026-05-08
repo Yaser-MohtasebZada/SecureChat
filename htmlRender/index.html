@@ -690,7 +690,7 @@ async function handleMsg(raw){ //async to use "await" [mar13]
     const senderId = d.from;
     // server now sends a Backblaze URL in d.url, not base64 in d.data
     const fileData = d.url || d.data;
-
+    if(senderId === myUsername) return;
     if(!chatHistories[senderId]) chatHistories[senderId] = [];
     addToHistory(senderId, {
         kind: 'file',

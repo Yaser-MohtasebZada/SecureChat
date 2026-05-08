@@ -667,9 +667,12 @@ wss.on("connection", (ws) => {
 
                 // send to receiver
                 wss.clients.forEach(c => {
-                    if (clients_connected_dict.get(c) === target) {
-                        c.send(JSON.stringify({type: "file",  from: username, filename: data.filename, url: fileUrl,  time: getTimeString()  }));
-                    }
+                    wss.clients.forEach(c => {
+                        const u = clients_connected_dict.get(c);
+                        if (u === target || u === username) {
+                            c.send(JSON.stringify({type: "file", from: username, filename: data.filename, url: fileUrl, time: getTimeString()}));
+                        }
+                    });
                 });
 
                 await saveMess(username, target, fileUrl, "file", data.filename);
