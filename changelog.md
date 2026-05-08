@@ -1,5 +1,6 @@
 Summary of changes of the Project 1
 CPSC 455 - GROUP 3 - SPRING 2026
+Tien Dat Le, Yaser Mohtaseb Zada, Karla Ramirez
 ---
 
 
@@ -287,32 +288,32 @@ CPSC 455 - GROUP 3 - SPRING 2026
 
 # 25-26 APR 
 ## Progress
-- Conver old style Python server to the new Node server
+- Convert the old-style Python server to the new Node server
 - Testing.
 
 # 27 APR 2026 EVE
-- Branched to Phase 3 branch
+- Branched to the Phase 3 branch
 - Testing some cloud preparation for switching up.
 - Download Node LTS on the server machine.
 
 ## Planned
 - Convert HTML file
-- Upload first updated version.
+- Upload the first updated version.
 
 # 28 APR 2026 MOR
 ## Progress
 - Fix many bugs on new server.js
 - Download glob
-- Push main code to Github
+- Push main code to GitHub
 
 ## Planned
-- Render employement
+- Render employment
 
 # 28 APR 2026 EVE
 ## Progress
 - Render registration
 - Got the URL: https://securechat-fp59.onrender.com/
-- Fix bugs when upload to Render.
+- Fix bugs when uploading to Render.
 
 ## Planned
 - Upload frontend to Infinity Free
@@ -331,22 +332,22 @@ CPSC 455 - GROUP 3 - SPRING 2026
 
 # 30 APR 2026 EVE
 ## Progress
-- Creta MySQL on Infintiy Free
+- Creta MySQL on Infinity Free
 - Fixing bugs
 - Now the user database is no longer local storage
 
 # 1 MAY 2026 MOR
 ## Progress
-- Fixing bugs, clean up and prepared for server.js to be compatible with client.html
-- Restored missing features when move from .py to .node
+- Fixing bugs, cleaning up, and preparing server.js to be compatible with client.html
+- Restored missing features when moving from .py to .node
 
 ## Planned
-- Clean up amd make sure client.html is compatible with server.js
-- Check the connections between users on different network setting (Monday testing)
+- Clean up and make sure client.html is compatible with server.js
+- Check the connections between users on different network settings (Monday testing)
 
 # 1 MAY 2026 EVE
 ## Progress
-- Fix and update rate limiting system, ping system
+- Fix and update the rate-limiting system, the ping system
 - Fixed bugs of E2EE.
 
 ## Planned
@@ -354,19 +355,19 @@ CPSC 455 - GROUP 3 - SPRING 2026
 
 # 2 MAY 2026 MOR
 ## Progress
-- Elimiated Firebase due to free-tier not included storage option
+- Eliminated Firebase due to the free-tier not including a storage option
 - Test Backblaze 
 - Backblaze setting,
-- Reivse new file uploading on BackblazwE
+- Review new file uploading on Backblaze
 
 ## Planned
-- Clean up amd make sure client.html is compatible with server.js
-- Check the connections between users on different network setting (Monday testing)
+- Clean up and make sure client.html is compatible with server.js
+- Check the connections between users on different network settings (Monday testing)
 
 # 2 MAY 2026 EVE
 ## Progress
-- Try to test created and chat, failed
-- Connected successfuly the mySQL database on Infinity Free to Render page.
+- Try to test the created chat, failed
+- Connected successfully to the MySQL database on the Infinity Free to Render page.
 - Failed to connect to login users, have to move the DB.
 - Checked pros and cons of Railway and PlanetScale
 
@@ -375,22 +376,22 @@ CPSC 455 - GROUP 3 - SPRING 2026
 
 # 3 MAY 2026 MOR
 ## Progress
-- Create the tables on Railway
+- Create the tables on the railway
 
 ## Planned
-- Testing and fix bugs, priority test the connections and login.
+- Testing and fixing bugs, priority test the connections and login.
 
 # 4 MAY 2026 EVE
 ## Progress
 - Test the connection of the system:
- + Test register: PASSED. Fixing the read announcement "Red lines"
- + Test login: PASSED. Fix the announcement while still hide the real reason for developers only.
+ + Test register: PASSED. Fixing the read announcement "Red lines."
+ + Test login: PASSED. Fix the announcement while still hiding the real reason for developers only.
  + Test rate limit: PASSED
 
- + Trying to fix the online users issues, this come from a commented out issues. FIXED
+ + Trying to fix the online users' issues, this comes from commented-out issues. FIXED
 
 ## Planned
-- Text not went through. Fix it
+- Text did not go through. Fix it
 
 # 5 MAY 2026 MOR - NOON
 ## Progress
@@ -398,35 +399,35 @@ CPSC 455 - GROUP 3 - SPRING 2026
 
 # 5 MAY 2026 EVE
 ## Progress
-- Trying to fix the chat issues - have to wait the Infinity Free to clear cache
+- Trying to fix the chat issues - have to wait for the Infinity Free to clear the cache
 - Never update the file in Infinity Free is the main reason.
 
 # 6 MAY 2026 EVE
 ## Progress
-- Infinity Free not even clean the cache even after around 21-23 hours passed.
-- With the situation of the project, moved the front end back to Render.
+- Infinity Free has not even cleaned the cache, even after around 21-23 hours have passed.
+- With the situation of the project, I moved the front end back to Render.
 - Fixed chat issues and the mismatch in time range
-- Create and used UptimeRobot.
+- Create and use UptimeRobot.
 
 # 7 MAY 2026 MOR
 ## Progress
 - Debugs and clean up
 
 ## Planned
-- Set the video demo recording right after class finnished, as booked.
+- Set the video demo recording right after class finished, as booked.
 
 # 7 MAY 2026 EVE
 ## Progress
-- Found and fix the file sending error
-- Decided that user is never can access the chat history
+- Found and fixed the file sending error
+- Decided that the user can never access the chat history
 - Final debugs and comments on the chat block
-- Postponed the video recording after the class is cancelled
-- Plan to resume video recording through Zoom as a best option for alternative method to record
-- Decided to reserver library room for tommorow recording to enhance and ensure the quality of video recording
+- Postponed the video recording after the class was cancelled
+- Plan to resume video recording through Zoom as the best option for an alternative method to record
+- Decided to reserve the library room for tomorrow's recording to enhance and ensure the quality of the video recording
 - Discuss and decide the demo flows for the video.
 
 ## Planned
-- Meeting in person tommorow to recording the video, discuss about the realeased on Git
+- Meeting in person tomorrow to record the video, discuss the release on Git
 - Prepare changelog and co-approve the read me documents.
 
 # 7 MAY 2026 MOR

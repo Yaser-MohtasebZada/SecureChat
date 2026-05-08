@@ -541,66 +541,42 @@ async function handleMsg(raw){ //async to use "await" [mar13]
     return;
 }*/
   if (d.type === 'auth_success' || d.type === 'register_success') {
-      console.log("full auth pack:", JSON.stringify(d, null, 2));
-      console.log("Auth_success raw:", d);
-      authDone = true;
-      setConn('connected');
-      startHeartbeat();
+    authDone = true;
+    setConn('connected');
+    startHeartbeat();
 
-      //token part
-      //sessionToken = d.token || d.sessionToken || null;
-      sessionToken =
-        d.token ??
-        d.session_token ??
-        d.sessionToken ??
-        null;
-      console.log("TOKEN RECEIVED:", sessionToken); //debug line
+    const token = d.token ?? d.session_token ?? d.sessionToken ?? null;
 
-      if (!sessionToken) {
-          console.error("Token is missing from server", d);
-      } else {
-          console.log("Token stored:", sessionToken);
+    if (!token) {
+        showToast("Auth failed: no session token", "error");
+        return;
+    }
 
-          //persistence token
-          localStorage.setItem("sessionToken", sessionToken);
-      }
+    // store it immediately, synchronously, before any async work
+    sessionToken = token;
+    localStorage.setItem("sessionToken", token);
 
-      if (pendingAuth) {
-          pendingAuth.resolve();
-          pendingAuth = null;
-      }
+    if (pendingAuth) {
+        pendingAuth.resolve();
+        pendingAuth = null;
+    }
 
-      
-
-      //crypto part
-      (async () => {
-          try {
-              if (!RSA_Key_Pair) {
-                  await create_Key_Pair();
-              }
-
-              const pubKey = await export_Pub_Key();
-
-              safeSend({
-                  type: "post_public_key",
-                  key: pubKey,
-                
-              });
-              
-              if (!sessionToken) {
-                console.error("No session tokeN, NO APP ENTRY");
-                showToast("Auth failed: no session token", "error");
-                doLogout();
-                return;
+    (async () => {
+        try {
+            if (!RSA_Key_Pair) {
+                await create_Key_Pair();
             }
-              enterApp();
+            const pubKey = await export_Pub_Key();
+            safeSend({ type: "post_public_key", key: pubKey });
 
-          } catch (err) {
-              console.error("Crypto failed:", err);
-          }
-      })();
+            enterApp(); // token is guaranteed to exist, no need to check again
+        } catch (err) {
+            console.error("Crypto setup failed:", err);
+            showToast("Crypto setup failed", "error");
+        }
+    })();
 
-      return;
+    return;
   }
   if(d.type==='auth_fail'||d.type==='error'){
     const msg=d.message||'Authentication failed.';
