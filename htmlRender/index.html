@@ -812,26 +812,37 @@ async function handleMsg(raw){ //async to use "await" [mar13]
             : nowHM()
     }));
 
-    if (currentChat === userId && d.session_key) {
-        try {
-            // decrypt the AES key using our RSA private key
-            const encBytes = Uint8Array.from(atob(d.session_key), c => c.charCodeAt(0));
-            const rawKey = await crypto.subtle.decrypt(
-                {name: "RSA-OAEP"}, RSA_Key_Pair.privateKey, encBytes
-            );
-            const historyAESKey = await crypto.subtle.importKey(
-                "raw", rawKey, {name: "AES-GCM"}, false, ["encrypt", "decrypt"]
-            );
-            await renderHistory(userId, historyAESKey);
-        } catch(err) {
-            console.warn("History key decryption failed:", err);
-            await renderHistory(userId, chat_AES_Keys[userId] || null);
-        }
-    } else if (currentChat === userId) {
-        // no saved key — fall back to current session key if available
-        await renderHistory(userId, chat_AES_Keys[userId] || null);
+    if (currentChat === userId) {
+      // wait for RSA key pair to be ready after page refresh
+      let waited = 0;
+      while (!RSA_Key_Pair && waited < 3000) {
+          await new Promise(r => setTimeout(r, 100));
+          waited += 100;
+      }
+
+      // build a list of all AES keys to try (saved session keys + current live key)
+      const keysToTry = [];
+
+      if (d.session_keys && d.session_keys.length > 0) {
+          for (const encKey of d.session_keys) {
+              try {
+                  const encBytes = Uint8Array.from(atob(encKey), c => c.charCodeAt(0));
+                  const rawKey = await crypto.subtle.decrypt(
+                      {name: "RSA-OAEP"}, RSA_Key_Pair.privateKey, encBytes
+                  );
+                  const aesKey = await crypto.subtle.importKey(
+                      "raw", rawKey, {name: "AES-GCM"}, false, ["encrypt", "decrypt"]
+                  );
+                  keysToTry.push(aesKey);
+              } catch(e) { /* skip bad key */ }
+          }
+      }
+
+      // also try the current live session key as last resort
+      if (chat_AES_Keys[userId]) keysToTry.push(chat_AES_Keys[userId]);
+
+      await renderHistory(userId, keysToTry);
     }
-    return;
   }
 }
 
@@ -977,13 +988,18 @@ function openChat(user) {
     const msgs = document.getElementById('messages'); 
     msgs.innerHTML = '';
     
+    /*
     (chatHistories[user] || []).forEach(m => {
         if (m.kind === 'text') appendMsg(m.from, m.content, m.from === myUsername, m.time);
         else if (m.kind === 'file') {
             if (m.from === myUsername) appendFileSent(m.filename, m.size, m.data, m.time);
             else appendFileReceived(m.from, m.filename, m.size, m.data, m.time);
         } else if (m.kind === 'system') appendSystemMsg(m.content);
-    });
+    });*/
+
+    //change the intention, now testing for the user to read older message, not message get lost every session.
+    // history will be rendered by the history handler once decryption key is ready
+    document.getElementById('msg-input').focus();
     
     scrollBottom();
     document.getElementById('msg-input').focus();
@@ -1397,15 +1413,19 @@ async function decrypt_AES(crypt_Key, base64) {
 }
 //new TextDecoder().decode(plain);
 
-async function renderHistory(userId, aesKey) {
+async function renderHistory(userId, aesKeys) {
+    //accept single key or array of keys
+    const keys = Array.isArray(aesKeys) ? aesKeys : (aesKeys ? [aesKeys] : []);
     const msgs = document.getElementById('messages');
     msgs.innerHTML = '';
     for (const m of (chatHistories[userId] || [])) {
         if (m.kind === 'text') {
-            let text = m.content;
-            if (aesKey && text) {
-                try { text = await decrypt_AES(aesKey, text); }
-                catch(e) { text = '[E2EE encryption protect you!]'; }
+            let text = '[could not decrypt]';
+            for (const key of keys) {
+                try {
+                    text = await decrypt_AES(key, m.content);
+                    break; // stop at first key that works
+                } catch(e) { /* try next key */ }
             }
             appendMsg(m.from, text, m.from === myUsername, m.time);
         } else if (m.kind === 'file') {

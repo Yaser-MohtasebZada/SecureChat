@@ -668,6 +668,7 @@ wss.on("connection", (ws) => {
             const secondUser = data.with;
 
             try {
+                // fetch messages first
                 const [rows] = await db.promise().query(
                     `SELECT * FROM messages 
                     WHERE (sender=? AND receiver=?) 
@@ -676,27 +677,26 @@ wss.on("connection", (ws) => {
                     [firstUser, secondUser, secondUser, firstUser]
                 );
 
-                //fetch the most recent saved session key for this pair
                 const pair = [firstUser, secondUser].sort();
                 const [keyRows] = await db.promise().query(
                     `SELECT * FROM session_keys 
-                    WHERE user1=? AND user2=? 
-                    ORDER BY created_at DESC LIMIT 1`,
+                    WHERE user1=? AND user2=?
+                    ORDER BY created_at ASC`,
                     [pair[0], pair[1]]
                 );
 
-                let encryptedKeyForMe = null;
-                if (keyRows.length > 0) {
-                    encryptedKeyForMe = pair[0] === firstUser
-                        ? keyRows[0].encrypted_key_for_user1
-                        : keyRows[0].encrypted_key_for_user2;
-                }
+                //return ALL saved keys for this pair
+                const allKeysForMe = keyRows.map(row =>
+                    pair[0] === firstUser
+                        ? row.encrypted_key_for_user1
+                        : row.encrypted_key_for_user2
+                );
 
                 ws.send(JSON.stringify({
                     type: "history",
                     with: secondUser,
                     messages: rows,
-                    session_key: encryptedKeyForMe //null if no history key saved yet
+                    session_keys: allKeysForMe
                 }));
 
             } catch (err) {
