@@ -1,0 +1,7 @@
+venv/
+
+*.pem
+*.key
+__pycache__/
+*.crt
+users.json
