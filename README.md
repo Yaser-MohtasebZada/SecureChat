@@ -96,7 +96,7 @@ For messages, the server relays and stores **ciphertext only**. Decryption happe
 | [Yaser Mohtasebzada](https://github.com/Yaser-MohtasebZada) | Phase 2 GUI client and server updates, documentation |
 | [Karla Ramirez](https://github.com/karlaAx21) | Documentation |
 
-Copied from the [original team repo](https://github.com/EricTienLe/SecureChat) with full commit history, branches, and release tags (`v0.1` to `v1.0`). The `Phase3` branch is the final version.
+Copied from the [original team repo](https://github.com/EricTienLe/SecureChat) with the full commit history and branches. The `Phase3` branch is the final version.
 
 ## Run it locally (Phase 2)
 
